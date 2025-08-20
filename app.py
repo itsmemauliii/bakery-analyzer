@@ -12,89 +12,131 @@ import random
 nltk.download("vader_lexicon", quiet=True)
 sia = SentimentIntensityAnalyzer()
 
-# Apply clean, minimal CSS
-def apply_clean_design():
+# Apply enhanced CSS with better colors and graphics
+def apply_enhanced_design():
     st.markdown("""
     <style>
-    /* Clean, minimal styling */
+    /* Main background with subtle bakery pattern */
     .main {
-        background-color: #FFFFFF;
-        color: #333333;
+        background-color: #FFF9F0;
+        background-image: radial-gradient(#FFD8A8 1px, transparent 2px);
+        background-size: 30px 30px;
+        color: #5D4037;
     }
     
     /* Header styling */
     .header {
         text-align: center;
-        padding: 10px 0 20px 0;
+        padding: 20px 0;
         margin-bottom: 30px;
-        border-bottom: 2px solid #F0F0F0;
+        background: linear-gradient(135deg, #FF9E6D 0%, #FF7043 100%);
+        border-radius: 12px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(255, 111, 0, 0.3);
     }
     
     /* Card styling */
     .card {
-        background-color: #FAFAFA;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        border-left: 4px solid #4CAF50;
+        background-color: rgba(255, 255, 255, 0.95);
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        border-left: 5px solid #FF7043;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(5px);
     }
     
     /* Button styling */
     .stButton button {
-        background-color: #4CAF50;
+        background: linear-gradient(135deg, #FF7043 0%, #E64A19 100%);
         color: white;
-        border-radius: 6px;
+        border-radius: 8px;
         border: none;
-        padding: 10px 20px;
-        font-weight: 500;
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(230, 74, 25, 0.3);
     }
     
     .stButton button:hover {
-        background-color: #45a049;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(230, 74, 25, 0.4);
     }
     
-    /* Clean metric styling */
+    /* Metric styling */
     .metric-box {
-        background-color: #F8F9FA;
-        padding: 15px;
-        border-radius: 8px;
+        background: linear-gradient(135deg, #FFCCBC 0%, #FFAB91 100%);
+        padding: 18px;
+        border-radius: 10px;
         text-align: center;
-        margin: 8px 0;
-        border: 1px solid #E0E0E0;
+        margin: 10px 0;
+        border: 2px solid #FF7043;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     
     /* Scattered metric styling */
     .scattered-metric {
-        background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+        background: linear-gradient(135deg, #FF7043 0%, #E64A19 100%);
         color: white;
-        padding: 12px;
-        border-radius: 10px;
+        padding: 15px;
+        border-radius: 12px;
         text-align: center;
-        margin: 10px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin: 12px;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         display: inline-block;
-        width: 140px;
+        width: 150px;
+        border: 2px solid #FFCCBC;
     }
     
     /* Progress bar styling */
     .stProgress > div > div {
-        background-color: #4CAF50;
+        background: linear-gradient(90deg, #FF7043 0%, #E64A19 100%);
+        border-radius: 10px;
     }
     
     /* Input field styling */
     .stTextInput input {
-        border-radius: 6px;
-        border: 1px solid #E0E0E0;
-        padding: 10px;
+        border-radius: 8px;
+        border: 2px solid #FFCCBC;
+        padding: 12px;
+        background-color: #FFF9F0;
+    }
+    
+    .stTextInput input:focus {
+        border-color: #FF7043;
+        box-shadow: 0 0 0 3px rgba(255, 112, 67, 0.2);
     }
     
     /* Form section styling */
     .form-section {
-        background-color: #F8F9FA;
-        padding: 15px;
+        background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+        padding: 20px;
+        border-radius: 12px;
+        margin: 18px 0;
+        border-left: 4px solid #FF7043;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+    
+    /* Multiselect styling */
+    .stMultiSelect [data-baseweb="select"] {
         border-radius: 8px;
-        margin: 15px 0;
-        border-left: 3px solid #4CAF50;
+        border: 2px solid #FFCCBC;
+        background-color: #FFF9F0;
+    }
+    
+    /* Slider styling */
+    .stSlider .st-ae {
+        color: #FF7043;
+    }
+    
+    /* Info box styling */
+    .info-box {
+        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+        padding: 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+        border-left: 4px solid #4CAF50;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
     /* Remove extra padding */
@@ -102,11 +144,31 @@ def apply_clean_design():
         padding-top: 2rem;
         padding-bottom: 2rem;
     }
+    
+    /* Custom checkbox styling */
+    .stCheckbox [data-baseweb="checkbox"] {
+        background-color: #FFF9F0;
+        border: 2px solid #FFCCBC;
+    }
+    
+    /* Text area styling */
+    .stTextArea textarea {
+        border-radius: 8px;
+        border: 2px solid #FFCCBC;
+        background-color: #FFF9F0;
+    }
+    
+    /* Selectbox styling */
+    .stSelectbox [data-baseweb="select"] {
+        border-radius: 8px;
+        border: 2px solid #FFCCBC;
+        background-color: #FFF9F0;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# Apply the clean CSS
-apply_clean_design()
+# Apply the enhanced CSS
+apply_enhanced_design()
 
 # Page configuration
 st.set_page_config(page_title="Bakery Analyzer", layout="centered", page_icon="🍞")
@@ -158,11 +220,11 @@ def display_scattered_metrics():
         </div>
         """, unsafe_allow_html=True)
 
-# Clean header section
+# Enhanced header section
 st.markdown("""
 <div class="header">
-    <h1 style="margin-bottom: 0.5rem; color: #333;">🍞 Bakery Analyzer</h1>
-    <p style="margin: 0; color: #666; font-size: 1.1rem;">AI-powered insights for your bakery business</p>
+    <h1 style="margin-bottom: 0.5rem; color: white; font-size: 2.5rem;">🍞 Bakery Analyzer</h1>
+    <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 1.2rem;">AI-powered insights for your bakery business</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -177,7 +239,8 @@ option = st.radio("Choose analysis type:",
 
 # Website Analysis Section
 if option == "Website Analysis":
-    st.markdown("### Website Analysis")
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### 🌐 Website Analysis")
     
     url = st.text_input("Enter bakery website URL:", "https://www.example.com")
     
@@ -251,8 +314,8 @@ if option == "Website Analysis":
                         for category, count in term_counts.items():
                             st.markdown(f"""
                             <div class="metric-box">
-                                <h3 style="margin: 0; color: #4CAF50;">{count}</h3>
-                                <p style="margin: 0; font-weight: 500;">{category}</p>
+                                <h3 style="margin: 0; color: #E64A19;">{count}</h3>
+                                <p style="margin: 0; font-weight: 600;">{category}</p>
                             </div>
                             """, unsafe_allow_html=True)
                     else:
@@ -287,10 +350,12 @@ if option == "Website Analysis":
             
             except Exception as e:
                 st.error(f"Could not analyze website: {str(e)}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # CSV Analysis Section
 elif option == "CSV Analysis":
-    st.markdown("### Customer Feedback Analysis")
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### 📊 Customer Feedback Analysis")
     
     uploaded_file = st.file_uploader("Upload CSV file with customer feedback", type="csv")
     
@@ -414,10 +479,12 @@ elif option == "CSV Analysis":
                 
         except Exception as e:
             st.error(f"Error analyzing CSV: {str(e)}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Data Upload Section with built-in form
 else:
-    st.markdown("### Share Your Bakery Data")
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### 📝 Share Your Bakery Data")
     
     st.info("""
     **Help us improve our analysis** by sharing your bakery data. 
@@ -426,7 +493,7 @@ else:
     
     # Built-in form for data collection
     with st.form("bakery_data_form"):
-        st.markdown("#### Bakery Information")
+        st.markdown("#### 🏪 Bakery Information")
         
         col1, col2 = st.columns(2)
         
@@ -439,20 +506,25 @@ else:
                                      ["", "Artisan", "Commercial", "Cafe", "Pastry Shop", "Home-based", "Other"])
             years_operation = st.number_input("Years in Operation", min_value=0, max_value=100, value=0)
         
-        st.markdown("#### Product Information")
+        st.markdown("#### 🍰 Product Information")
         products = st.text_area("List your main products (separate with commas)*", 
                                help="e.g., Chocolate Cake, Croissants, Sourdough Bread, Macarons")
         
-        st.markdown("#### Customer Feedback")
+        st.markdown("#### 💬 Customer Feedback")
         rating = st.slider("Overall Customer Rating (1-5)*", 1, 5, 3)
         common_feedback = st.text_area("Common Customer Comments")
         
-        st.markdown("#### Additional Information")
+        st.markdown("#### 📊 Additional Information")
+        
+        st.markdown('<div class="form-section">', unsafe_allow_html=True)
         challenges = st.multiselect("What are your biggest challenges?",
                                   ["Pricing", "Competition", "Supply Issues", "Staffing", "Marketing", "Seasonality", "Other"])
+        st.markdown('</div>', unsafe_allow_html=True)
         
+        st.markdown('<div class="form-section">', unsafe_allow_html=True)
         success_factors = st.multiselect("What contributes most to your success?",
                                        ["Quality", "Location", "Price", "Variety", "Customer Service", "Marketing", "Unique Products"])
+        st.markdown('</div>', unsafe_allow_html=True)
         
         submitted = st.form_submit_button("Submit Data", type="primary")
         
@@ -495,8 +567,8 @@ else:
     
     # Information about data usage
     st.markdown("""
-    <div style="background-color: #E8F5E9; padding: 15px; border-radius: 8px; margin-top: 20px;">
-        <h4 style="margin-top: 0;">What we do with your data:</h4>
+    <div class="info-box">
+        <h4 style="margin-top: 0; color: #2E7D32;">What we do with your data:</h4>
         <ul style="margin-bottom: 0;">
             <li>Improve bakery analysis algorithms</li>
             <li>Create industry benchmarks</li>
@@ -505,7 +577,13 @@ else:
         </ul>
     </div>
     """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# Minimal footer
+# Enhanced footer
 st.markdown("---")
-st.caption("Bakery Analyzer • Simple, AI-powered insights")
+st.markdown("""
+<div style="text-align: center; color: #5D4037; padding: 20px;">
+    <p style="font-weight: 600; margin-bottom: 5px;">Bakery Analyzer • Mauli Patel</p>
+    <p style="font-size: 0.9rem; opacity: 0.7; margin: 0;">© 2023 Bakery Insights. All rights reserved.</p>
+</div>
+""", unsafe_allow_html=True)
