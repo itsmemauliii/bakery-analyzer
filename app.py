@@ -1,141 +1,96 @@
 import matplotlib
-matplotlib.use("Agg")  # ✅ safe backend for Streamlit Cloud
+matplotlib.use("Agg")  # safe backend for Streamlit Cloud
 
 import streamlit as st
 import pandas as pd
 from scraper import scrape_website
-from nlp_utils import clean_text, extract_keywords, sentiment_analysis, readability
+from nlp_utils import clean_text, extract_keywords, sentiment_analysis, readability, extract_products, extract_entities
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-
 from io import BytesIO
 from datetime import datetime
-
-# PDF bits
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 
 st.set_page_config(page_title="Bakery Website Analyzer", layout="wide")
-st.title("🍰 Bakery Website NLP Analyzer")
+st.title("🍩 Bakery Website NLP Analyzer")
 st.write("Paste your bakery website URL and let’s see what flavors your words reveal!")
 
-def build_pdf(url, df, polarity, subjectivity, avg_word_len, summary, suggestions, wc_png_bytes):
-    """Create a simple, clean PDF and return bytes."""
+# PDF builder
+def build_pdf(url, df, polarity, subjectivity, avg_word_len, summary, suggestions, wc_png_bytes, products, entities):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
     left = 2 * cm
-    right = width - 2 * cm
     y = height - 2 * cm
 
     def line(txt, font="Helvetica", size=11, gap=0.5*cm):
         nonlocal y
         c.setFont(font, size)
-        # simple wrap
-        max_chars = 95 if size <= 11 else 80
+        max_chars = 95
         words = txt.split()
         current = ""
         for w in words:
             if len(current) + len(w) + 1 > max_chars:
                 c.drawString(left, y, current)
                 y -= gap
-                if y < 2*cm:
-                    c.showPage(); y = height - 2*cm
-                    c.setFont(font, size)
                 current = w
             else:
                 current = (current + " " + w).strip()
         if current:
             c.drawString(left, y, current)
             y -= gap
-            if y < 2*cm:
-                c.showPage(); y = height - 2*cm
 
     # Header
     c.setFont("Helvetica-Bold", 16)
     c.drawString(left, y, "Bakery Website NLP Report")
-    y -= 0.9 * cm
+    y -= 1 * cm
     c.setFont("Helvetica", 10)
     c.drawString(left, y, f"URL: {url}")
     y -= 0.5 * cm
     c.drawString(left, y, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    y -= 0.9 * cm
+    y -= 1 * cm
 
-    # Keywords section
+    # Products
     c.setFont("Helvetica-Bold", 13)
-    c.drawString(left, y, "Top Keywords")
+    c.drawString(left, y, "Items Found")
     y -= 0.7 * cm
     c.setFont("Helvetica", 11)
-    if df.empty:
-        line("No keywords extracted.")
-    else:
-        # print two columns if space allows
-        pairs = [f"{k}: {int(v)}" for k, v in df.values]
-        col_split = (len(pairs) + 1) // 2
-        col1 = pairs[:col_split]
-        col2 = pairs[col_split:]
+    for item, freq in products:
+        line(f"{item.capitalize()} – {freq} mentions")
 
-        max_rows = max(len(col1), len(col2))
-        for i in range(max_rows):
-            left_text = col1[i] if i < len(col1) else ""
-            right_text = col2[i] if i < len(col2) else ""
-            c.drawString(left, y, left_text)
-            if right_text:
-                c.drawString(left + 7*cm, y, right_text)
-            y -= 0.5 * cm
-            if y < 2*cm:
-                c.showPage(); y = height - 2*cm
-                c.setFont("Helvetica", 11)
-
-    y -= 0.4 * cm
-
-    # Sentiment & readability
+    # Sentiment
+    y -= 0.5 * cm
     c.setFont("Helvetica-Bold", 13)
     c.drawString(left, y, "Tone & Readability")
     y -= 0.7 * cm
-    c.setFont("Helvetica", 11)
-    tone = "Positive" if polarity > 0 else "Neutral" if polarity == 0 else "Negative"
-    line(f"Sentiment: {tone} (polarity {polarity:.2f}, subjectivity {subjectivity:.2f}).")
-    line(f"Average word length: {avg_word_len:.2f}.")
+    line(f"Polarity {polarity:.2f}, Subjectivity {subjectivity:.2f}, Avg word length {avg_word_len:.2f}")
 
-    # Summary
-    y -= 0.2 * cm
+    # Entities
+    y -= 0.5 * cm
     c.setFont("Helvetica-Bold", 13)
-    c.drawString(left, y, "Insights Summary")
+    c.drawString(left, y, "Brand Mentions / Entities")
     y -= 0.7 * cm
-    c.setFont("Helvetica", 11)
-    line(summary)
+    for e in entities:
+        line(f"- {e}")
 
     # Suggestions
-    y -= 0.2 * cm
+    y -= 0.5 * cm
     c.setFont("Helvetica-Bold", 13)
     c.drawString(left, y, "Marketing Suggestions")
     y -= 0.7 * cm
-    c.setFont("Helvetica", 11)
-    if suggestions:
-        for s in suggestions:
-            line(f"• {s}")
-    else:
-        line("• Content balance looks strong. Keep it up!")
+    for s in suggestions:
+        line(f"• {s}")
 
-    # Wordcloud image
-    # start a new page if not enough room
-    if y < 10*cm:
-        c.showPage(); y = height - 2*cm
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(left, y, "WordCloud")
-    y -= 0.7 * cm
+    # WordCloud
+    y -= 1 * cm
     try:
         img = ImageReader(BytesIO(wc_png_bytes))
-        # keep aspect ratio within bounds
-        img_w = 14 * cm
-        img_h = 8 * cm
-        c.drawImage(img, left, y - img_h, width=img_w, height=img_h, preserveAspectRatio=True, mask='auto')
-        y -= (img_h + 0.5*cm)
-    except Exception:
-        line("WordCloud image unavailable in this session.")
+        c.drawImage(img, left, y-8*cm, width=12*cm, height=8*cm)
+    except:
+        line("WordCloud unavailable")
 
     c.showPage()
     c.save()
@@ -143,6 +98,8 @@ def build_pdf(url, df, polarity, subjectivity, avg_word_len, summary, suggestion
     buffer.close()
     return pdf
 
+
+# MAIN
 url = st.text_input("Enter Bakery Website URL", "https://www.example.com")
 
 if st.button("Analyze"):
@@ -153,99 +110,68 @@ if st.button("Analyze"):
         else:
             cleaned = clean_text(text)
 
+            # Extract products
+            products = extract_products(cleaned)
+            st.subheader("🥐 Items Available")
+            if products:
+                df_products = pd.DataFrame(products, columns=["Item", "Mentions"])
+                st.table(df_products)
+            else:
+                st.write("No bakery items clearly found.")
+
             # Keywords
-            keywords = extract_keywords(cleaned, top_n=10)
-            st.subheader("🔑 Top Keywords (Signature Flavors)")
-            df = pd.DataFrame(keywords, columns=["Keyword", "Frequency"])
-            st.table(df)
-            st.bar_chart(df.set_index("Keyword"))  # pretty bar chart
+            keywords = extract_keywords(cleaned, top_n=15)
+            df_keywords = pd.DataFrame(keywords, columns=["Keyword", "Frequency"])
+            st.subheader("🔑 Top Keywords")
+            st.table(df_keywords)
 
             # Sentiment
             polarity, subjectivity = sentiment_analysis(cleaned)
             st.subheader("💬 Sentiment Analysis")
             sentiment_label = "😊 Positive" if polarity > 0 else "😐 Neutral" if polarity == 0 else "☹️ Negative"
             st.write(f"Polarity: {polarity:.2f} → {sentiment_label}")
-            st.write(f"Subjectivity: {subjectivity:.2f} (0 = objective, 1 = personal opinion)")
+            st.write(f"Subjectivity: {subjectivity:.2f}")
 
             # Readability
             avg_len = readability(cleaned)
             st.subheader("📖 Readability Check")
-            st.write(f"Average word length: {avg_len}")
+            st.write(f"Average word length: {avg_len:.2f}")
+
+            # Entities
+            entities = extract_entities(cleaned)
+            st.subheader("🏷 Brand Mentions / Entities")
+            st.write(entities)
 
             # WordCloud
-            st.subheader("☁️ WordCloud of Bakery Words")
             wc = WordCloud(width=800, height=400, background_color="white").generate(cleaned)
             fig, ax = plt.subplots()
             ax.imshow(wc, interpolation="bilinear")
             ax.axis("off")
             st.pyplot(fig)
 
-            # Save wordcloud image to bytes for PDF
             buf = BytesIO()
             fig.savefig(buf, format="png", bbox_inches="tight")
-            buf.seek(0)
             wc_png_bytes = buf.getvalue()
-            buf.close()
 
-            # Insights Summary
-            st.subheader("📝 Insights Summary")
-            top_word = df.iloc[0]["Keyword"] if not df.empty else "bakery"
-            tone = "positive" if polarity > 0 else "neutral" if polarity == 0 else "negative"
-            summary = (
-                f"This bakery’s website strongly emphasizes **{top_word}**, "
-                f"showing it as a key highlight in their offerings. "
-                f"The overall tone of the site feels **{tone}**, "
-                f"with language that leans {'towards personal storytelling' if subjectivity > 0.5 else 'more factual descriptions'}. "
-                f"Average word length of {avg_len} suggests their content is written in a "
-                f"{'simple, approachable style' if avg_len < 6 else 'more formal style'}."
-            )
-            st.write(summary)
-
-            # Marketing Suggestions (rule-based, fast & free)
+            # Suggestions
             st.subheader("📊 Marketing Suggestions")
             suggestions = []
-            if not df.empty:
-                top_keywords = [k.lower() for k in df["Keyword"].tolist()]
-                if "cake" not in top_keywords:
-                    suggestions.append("Consider highlighting cakes more — they’re a key bakery draw.")
-                if "chocolate" not in top_keywords:
-                    suggestions.append("Add more chocolate references; it converts dessert lovers.")
-                if polarity < 0:
-                    suggestions.append("Tone leans negative — use warmer, more inviting wording.")
-                if subjectivity < 0.3:
-                    suggestions.append("Very factual tone — sprinkle in stories or testimonials.")
-                if subjectivity > 0.7:
-                    suggestions.append("Very personal tone — balance with clear product details (prices, sizes).")
-                # small SEO nudge
-                if "wedding" not in top_keywords and "birthday" in top_keywords:
-                    suggestions.append("You mention birthdays but not weddings — add wedding cakes to expand occasions.")
-                if "delivery" not in top_keywords:
-                    suggestions.append("If you deliver, state it clearly — ‘same-day delivery’ boosts conversions.")
+            if polarity < 0:
+                suggestions.append("Tone feels negative — use warmer wording.")
+            if subjectivity < 0.3:
+                suggestions.append("Very factual — add testimonials.")
+            if "cake" not in [i for i, _ in products]:
+                suggestions.append("Highlight cakes more, customers look for them.")
+            if "chocolate" not in [i for i, _ in products]:
+                suggestions.append("Add chocolate items to attract dessert lovers.")
+            if not suggestions:
+                suggestions.append("Looks balanced. Keep it up!")
 
-            if suggestions:
-                for s in suggestions:
-                    st.markdown(f"- {s}")
-            else:
-                st.markdown("✅ Content balance looks strong. Keep it up!")
+            for s in suggestions:
+                st.markdown(f"- {s}")
 
-            # 📄 Download PDF report
-            pdf_bytes = build_pdf(
-                url=url,
-                df=df,
-                polarity=polarity,
-                subjectivity=subjectivity,
-                avg_word_len=avg_len,
-                summary=summary.replace("**", ""),  # plain text for PDF
-                suggestions=suggestions,
-                wc_png_bytes=wc_png_bytes
-            )
-            st.download_button(
-                label="📄 Download PDF Report",
-                data=pdf_bytes,
-                file_name="bakery_nlp_report.pdf",
-                mime="application/pdf",
-                type="primary",
-            )
-
-st.markdown("---")
-st.markdown("Built with ❤️ by Mauli Patel")
+            # PDF download
+            pdf_bytes = build_pdf(url, df_keywords, polarity, subjectivity, avg_len,
+                                  "Summary", suggestions, wc_png_bytes, products, entities)
+            st.download_button("📄 Download PDF Report", data=pdf_bytes,
+                               file_name="bakery_nlp_report.pdf", mime="application/pdf")
