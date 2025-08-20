@@ -9,8 +9,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk; nltk.download("vader_lexicon", quiet=True)
 
-st.set_page_config(page_title="Your Bakery Helper", page_icon="🍞", layout="wide")
-st.title("🥐 Your Bakery Helper – Creative Store Analysis")
+st.set_page_config(page_title="Creative Bakery Helper", page_icon="🍩", layout="wide")
+st.title("🍩 Your Bakery Helper – Smart Bakery Store Analyzer")
 
 # --- Functions ---
 def fetch_text(url):
@@ -36,18 +36,26 @@ def plot_sentiment(sentiment):
 
 def recommendations(items):
     rec=[]
-    if not items: return ["No products detected – add more bakery content!"]
+    if not items: return [("❌","No products detected – add more bakery content!","red")]
     top=items[0][0]
-    if "cake" in top: rec.append("Promote cakes with seasonal flavors (chocolate, fruit).")
-    if "cookie" in [i[0] for i in items]: rec.append("Bundle cookies with beverages for upselling.")
-    if "bread" in [i[0] for i in items]: rec.append("Highlight artisan breads or sourdough specials.")
-    if len(items)<3: rec.append("Expand product variety on your website.")
+    if "cake" in top: rec.append(("✅","Promote cakes with seasonal flavors (chocolate, fruit).","green"))
+    if "cookie" in [i[0] for i in items]: rec.append(("✅","Bundle cookies with beverages for upselling.","green"))
+    if "bread" in [i[0] for i in items]: rec.append(("✅","Highlight artisan breads or sourdough specials.","green"))
+    if len(items)<3: rec.append(("⚠️","Expand product variety on your website.","orange"))
     return rec
 
-def generate_pdf(url,items,specials,sentiment,keywords,pie_buf):
+def bakery_score(items,sentiment):
+    score=50
+    if items: score+=min(20,len(items)*5)   # reward variety
+    score+=int(sentiment["pos"]*20)         # reward positive sentiment
+    score-=int(sentiment["neg"]*20)         # penalty for negative
+    return max(0,min(100,score))
+
+def generate_pdf(url,items,specials,sentiment,keywords,pie_buf,score):
     buf=io.BytesIO(); doc=SimpleDocTemplate(buf); styles=getSampleStyleSheet(); elems=[]
     elems+=[Paragraph("🍩 Creative Bakery Store Analysis",styles['Title']),
             Paragraph(f"Website: {url}",styles['Normal']),Spacer(1,12)]
+    elems.append(Paragraph(f"Health Score: {score}/100",styles['Heading2']))
     if items: elems.append(Paragraph("Top Items:",styles['Heading2']))
     for k,v in items: elems.append(Paragraph(f"{k.capitalize()} – {v}",styles['Normal']))
     if specials: elems.append(Paragraph("Seasonal Specials:",styles['Heading2']))
@@ -55,7 +63,7 @@ def generate_pdf(url,items,specials,sentiment,keywords,pie_buf):
     elems.append(Paragraph("Sentiment Scores:",styles['Heading2']))
     elems.append(Paragraph(str(sentiment),styles['Normal'])); elems.append(Image(pie_buf,300,200))
     elems.append(Paragraph("Recommendations:",styles['Heading2']))
-    for r in recommendations(items): elems.append(Paragraph("• "+r,styles['Normal']))
+    for icon,text,_ in recommendations(items): elems.append(Paragraph(icon+" "+text,styles['Normal']))
     if keywords:
         wc=WordCloud(width=500,height=200,background_color="white").generate(" ".join(keywords))
         img=io.BytesIO(); plt.imshow(wc); plt.axis("off"); plt.savefig(img,format="PNG");plt.close()
@@ -68,11 +76,15 @@ if st.button("Analyze"):
     text=fetch_text(url)
     if not text: st.error("Could not fetch website"); st.stop()
     items, specials, sentiment = extract_items(text), seasonal_specials(text), sentiment_summary(text)
-    keywords=[w for w,_ in items]
+    keywords=[w for w,_ in items]; score=bakery_score(items,sentiment)
+    st.metric("🏆 Bakery Health Score", f"{score}/100")
     col1,col2=st.columns(2)
     with col1: st.subheader("🍰 Items Found"); st.table(items)
     with col2: st.subheader("💬 Sentiment Scores"); st.json(sentiment); pie_buf=plot_sentiment(sentiment); st.image(pie_buf)
     st.subheader("☁️ WordCloud"); wc=WordCloud(width=600,height=300,background_color="white").generate(" ".join(keywords))
     plt.imshow(wc); plt.axis("off"); st.pyplot(plt.gcf()); plt.close()
-    pdf=generate_pdf(url,items,specials,sentiment,keywords,pie_buf)
+    st.subheader("📌 Recommendations")
+    for icon,text,color in recommendations(items):
+        st.markdown(f"<span style='color:{color}; font-weight:bold'>{icon} {text}</span>", unsafe_allow_html=True)
+    pdf=generate_pdf(url,items,specials,sentiment,keywords,pie_buf,score)
     st.download_button("📥 Download PDF Report",data=pdf,file_name="bakery_report.pdf")
