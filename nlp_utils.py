@@ -1,16 +1,12 @@
+import re
 from textblob import TextBlob
 from collections import Counter
-import re
 import nltk
+
+# Ensure stopwords are available
 nltk.download("stopwords", quiet=True)
 from nltk.corpus import stopwords
 STOPWORDS = set(stopwords.words("english"))
-
-# Download stopwords if not already available
-try:
-    nltk.data.find("corpora/stopwords")
-except LookupError:
-    nltk.download("stopwords")
 
 def clean_text(text):
     return re.sub(r'\s+', ' ', text).strip()
