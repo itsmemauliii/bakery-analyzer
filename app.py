@@ -11,200 +11,265 @@ import re
 nltk.download("vader_lexicon", quiet=True)
 sia = SentimentIntensityAnalyzer()
 
-# Simple UI configuration
-st.set_page_config(page_title="🍰 Realistic Bakery Analyzer", layout="wide", page_icon="🍞")
-st.title("🍞 Realistic Bakery Analyzer")
-st.markdown("### Get honest insights about bakery websites")
+# Page configuration
+st.set_page_config(page_title="🍰 Complete Bakery Analyzer", layout="wide", page_icon="🍞")
+st.title("🍞 Complete Bakery Analyzer")
+st.markdown("### Comprehensive analysis for bakery websites and customer feedback")
 
-# Sidebar for navigation
+# Sidebar navigation
 st.sidebar.header("Navigation")
-option = st.sidebar.radio("Choose Input Method:", ["🌐 Website Analysis", "📊 CSV Analysis", "📝 Data Collection"])
+option = st.sidebar.radio("Choose Analysis Type:", 
+                         ["🌐 Website Analysis", "📊 CSV Analysis", "📝 Data Collection"])
 
-# Google Forms integration for data collection
+# Google Forms integration
 if option == "📝 Data Collection":
     st.header("📝 Help Us Improve Our Service")
     st.markdown("""
     We're constantly working to improve our bakery analysis tools. 
-    Please take a moment to share your bakery data or feedback with us.
+    Please share your bakery data or feedback with us through this form.
     """)
     
-    # Google Form embed (replace with your actual form URL)
     google_form_url = "https://docs.google.com/forms/d/e/1FAIpQLSe.../viewform?embedded=true"
     st.components.v1.iframe(google_form_url, width=640, height=800, scrolling=True)
     
-    st.info("Your responses will help us train better models for bakery analysis!")
+    st.info("Your responses help us train better models for bakery analysis!")
 
 # Website Analysis Section
 elif option == "🌐 Website Analysis":
-    st.header("🌐 Website Content Analysis")
-    url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.example.com")
+    st.header("🌐 Bakery Website Analysis")
     
-    if st.button("🔍 Analyze Website", type="primary"):
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            
-            response = requests.get(url, timeout=10, headers=headers)
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Remove scripts and styles
-            for element in soup(["script", "style", "meta", "link"]):
-                element.decompose()
-            
-            # Get clean text
-            text = soup.get_text(separator=' ', strip=True)
-            
-            # Look for obvious product listings
-            potential_products = []
-            
-            # Method 1: Look for common product listing patterns
-            product_patterns = [
-                'product', 'item', 'menu', 'listing', 'card', 'grid'
-            ]
-            
-            for pattern in product_patterns:
-                elements = soup.find_all(class_=re.compile(pattern))
-                for element in elements:
-                    product_text = element.get_text(strip=True)
-                    if 10 < len(product_text) < 100:
-                        potential_products.append(product_text)
-            
-            # Method 2: Look for headings that might be product categories
-            headings = soup.find_all(['h2', 'h3', 'h4'])
-            for heading in headings:
-                heading_text = heading.get_text(strip=True)
-                if 5 < len(heading_text) < 50:
-                    potential_products.append(heading_text)
-            
-            # Method 3: Simple text analysis for bakery terms
-            bakery_terms = [
-                'cake', 'pastry', 'bread', 'cookie', 'pie', 'tart', 
-                'muffin', 'donut', 'brownie', 'croissant', 'bagel'
-            ]
-            
-            found_terms = {}
-            for term in bakery_terms:
-                count = text.lower().count(term)
-                if count > 0:
-                    found_terms[term] = count
-            
-            # Sentiment analysis
-            sentiment = sia.polarity_scores(text)
-            health_score = min(100, max(0, int(sentiment["pos"] * 80 + 20)))
-            
-            # Display results
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.subheader("📋 Content Analysis")
-                
-                if potential_products:
-                    st.write("**Potential products found:**")
-                    for i, product in enumerate(potential_products[:10], 1):
-                        st.write(f"{i}. {product}")
-                    
-                    if len(potential_products) > 10:
-                        st.info(f"... and {len(potential_products) - 10} more items")
-                else:
-                    st.info("No specific product listings detected.")
-                
-                if found_terms:
-                    st.write("**Bakery terms mentioned:**")
-                    for term, count in found_terms.items():
-                        st.write(f"- {term}: {count} mentions")
-            
-            with col2:
-                st.subheader("📊 Sentiment Analysis")
-                
-                st.metric("Positive Content", f"{sentiment['pos']*100:.1f}%")
-                st.metric("Neutral Content", f"{sentiment['neu']*100:.1f}%")
-                st.metric("Negative Content", f"{sentiment['neg']*100:.1f}%")
-                
-                st.subheader("🏆 Content Quality Score")
-                if health_score >= 70:
-                    st.success(f"{health_score}/100")
-                elif health_score >= 40:
-                    st.warning(f"{health_score}/100")
-                else:
-                    st.error(f"{health_score}/100")
-                st.progress(health_score/100)
-            
-            # Realistic assessment
-            st.subheader("💡 Realistic Assessment")
-            
-            if not potential_products and not found_terms:
-                st.warning("Could not extract specific product information.")
-                st.info("""
-                This is common because:
-                - Modern websites often load content dynamically with JavaScript
-                - Product information might be in images rather than text
-                - The website might use complex structures
-                """)
-            elif found_terms and not potential_products:
-                st.info("Found bakery-related content but no specific product listings.")
-            else:
-                st.success("Found some product information.")
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.examplebakery.com")
         
-        except Exception as e:
-            st.error(f"Could not analyze website: {str(e)}")
+        if st.button("🔍 Analyze Website", type="primary", use_container_width=True):
+            with st.spinner("Analyzing website content..."):
+                try:
+                    # Fetch website content
+                    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                    response = requests.get(url, timeout=10, headers=headers)
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    # Clean up the HTML
+                    for element in soup(["script", "style", "meta", "link"]):
+                        element.decompose()
+                    
+                    # Extract all text
+                    all_text = soup.get_text(separator=' ', strip=True)
+                    
+                    # Analyze bakery-specific content
+                    bakery_keywords = {
+                        'Cakes': ['cake', 'cupcake', 'cheesecake', 'birthday cake', 'wedding cake'],
+                        'Pastries': ['pastry', 'croissant', 'danish', 'éclair', 'puff pastry'],
+                        'Breads': ['bread', 'baguette', 'sourdough', 'ciabatta', 'whole wheat'],
+                        'Cookies': ['cookie', 'biscuit', 'macaron', 'shortbread', 'biscotti'],
+                        'Desserts': ['pie', 'tart', 'muffin', 'brownie', 'donut', 'scone']
+                    }
+                    
+                    # Count keyword occurrences
+                    keyword_counts = {category: 0 for category in bakery_keywords}
+                    text_lower = all_text.lower()
+                    
+                    for category, keywords in bakery_keywords.items():
+                        for keyword in keywords:
+                            keyword_counts[category] += text_lower.count(keyword)
+                    
+                    # Filter out categories with zero counts
+                    keyword_counts = {k: v for k, v in keyword_counts.items() if v > 0}
+                    
+                    # Sentiment analysis
+                    sentiment = sia.polarity_scores(all_text)
+                    health_score = int(sentiment["pos"] * 100)
+                    
+                    # Display results in tabs
+                    tab1, tab2, tab3 = st.tabs(["📊 Analysis", "📋 Content", "💡 Insights"])
+                    
+                    with tab1:
+                        st.subheader("Bakery Content Analysis")
+                        
+                        if keyword_counts:
+                            # Create dataframe for visualization
+                            df = pd.DataFrame({
+                                'Category': list(keyword_counts.keys()),
+                                'Count': list(keyword_counts.values())
+                            })
+                            
+                            # Display bar chart
+                            fig, ax = plt.subplots()
+                            ax.bar(df['Category'], df['Count'], color=['#FF9999', '#66B2FF', '#99FF99', '#FFCC99', '#FF99FF'])
+                            plt.xticks(rotation=45, ha='right')
+                            plt.title('Bakery Content Distribution')
+                            plt.tight_layout()
+                            st.pyplot(fig)
+                        else:
+                            st.info("No specific bakery content detected.")
+                    
+                    with tab2:
+                        st.subheader("Content Details")
+                        
+                        if keyword_counts:
+                            for category, count in keyword_counts.items():
+                                st.metric(f"{category} Mentions", count)
+                        else:
+                            st.warning("Could not identify specific bakery content.")
+                            
+                        # Show text sample
+                        st.subheader("Text Sample")
+                        sample_text = all_text[:500] + "..." if len(all_text) > 500 else all_text
+                        st.text(sample_text)
+                    
+                    with tab3:
+                        st.subheader("Website Insights")
+                        
+                        # Sentiment analysis
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Positive", f"{sentiment['pos']*100:.1f}%", help="Percentage of positive content")
+                        with col2:
+                            st.metric("Neutral", f"{sentiment['neu']*100:.1f}%", help="Percentage of neutral content")
+                        with col3:
+                            st.metric("Negative", f"{sentiment['neg']*100:.1f}%", help="Percentage of negative content")
+                        
+                        # Health score
+                        st.subheader("Website Health Score")
+                        if health_score >= 70:
+                            st.success(f"{health_score}/100")
+                        elif health_score >= 40:
+                            st.warning(f"{health_score}/100")
+                        else:
+                            st.error(f"{health_score}/100")
+                        st.progress(health_score/100)
+                        
+                        # Recommendations
+                        st.subheader("Recommendations")
+                        if health_score >= 70:
+                            st.success("Great website content! Keep up the good work.")
+                        elif health_score >= 40:
+                            st.info("Good content. Consider adding more product details and descriptions.")
+                        else:
+                            st.warning("Consider improving website content with more product information.")
+                
+                except Exception as e:
+                    st.error(f"Error analyzing website: {str(e)}")
+    
+    with col2:
+        st.info("""
+        **Website Analysis Features:**
+        - Content categorization
+        - Sentiment analysis
+        - Health scoring
+        - Keyword analysis
+        - Visual reporting
+        """)
 
 # CSV Analysis Section
 else:
-    st.header("📊 CSV Analysis")
-    file = st.file_uploader("Upload your bakery data (CSV with 'review' or 'product' column)", type=["csv"])
+    st.header("📊 Customer Feedback Analysis")
     
-    if file is not None:
+    uploaded_file = st.file_uploader("Upload CSV file with customer feedback", type="csv")
+    
+    if uploaded_file is not None:
         try:
-            df = pd.read_csv(file)
-            st.write("Preview of Data:", df.head())
+            # Read CSV file
+            df = pd.read_csv(uploaded_file)
             
-            # Find text columns for analysis
-            text_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in 
-                          ['review', 'text', 'comment', 'feedback', 'product', 'description'])]
+            # Display data preview
+            st.subheader("Data Preview")
+            st.dataframe(df.head())
+            
+            # Find text columns
+            text_columns = []
+            for col in df.columns:
+                if any(keyword in col.lower() for keyword in ['review', 'feedback', 'comment', 'text']):
+                    text_columns.append(col)
             
             if text_columns:
-                text = " ".join(df[text_columns[0]].astype(str))
-            else:
-                text = " ".join(df.astype(str).sum(axis=1))
+                selected_column = st.selectbox("Select text column for analysis:", text_columns)
                 
-            sentiment = sia.polarity_scores(text)
-            health_score = min(100, max(0, int(sentiment["pos"]*100)))
+                if st.button("Analyze Feedback", type="primary"):
+                    # Combine all text
+                    all_text = " ".join(df[selected_column].dropna().astype(str))
+                    
+                    # Sentiment analysis
+                    sentiment = sia.polarity_scores(all_text)
+                    health_score = int(sentiment["pos"] * 100)
+                    
+                    # Display results
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.subheader("Sentiment Analysis")
+                        
+                        # Sentiment metrics
+                        metrics_col1, metrics_col2, metrics_col3 = st.columns(3)
+                        with metrics_col1:
+                            st.metric("Positive", f"{sentiment['pos']*100:.1f}%")
+                        with metrics_col2:
+                            st.metric("Neutral", f"{sentiment['neu']*100:.1f}%")
+                        with metrics_col3:
+                            st.metric("Negative", f"{sentiment['neg']*100:.1f}%")
+                        
+                        # Health score
+                        st.subheader("Customer Satisfaction Score")
+                        if health_score >= 70:
+                            st.success(f"{health_score}/100")
+                        elif health_score >= 40:
+                            st.warning(f"{health_score}/100")
+                        else:
+                            st.error(f"{health_score}/100")
+                        st.progress(health_score/100)
+                    
+                    with col2:
+                        st.subheader("Word Cloud")
+                        
+                        # Generate word cloud
+                        wordcloud = WordCloud(
+                            width=600, 
+                            height=400, 
+                            background_color='white',
+                            colormap='viridis'
+                        ).generate(all_text)
+                        
+                        fig, ax = plt.subplots()
+                        ax.imshow(wordcloud, interpolation='bilinear')
+                        ax.axis('off')
+                        st.pyplot(fig)
+                    
+                    # Insights
+                    st.subheader("Feedback Insights")
+                    
+                    if health_score >= 70:
+                        st.success("""
+                        **Excellent customer satisfaction!**
+                        - Customers are highly satisfied with your products
+                        - Keep maintaining your quality standards
+                        - Consider asking for testimonials
+                        """)
+                    elif health_score >= 40:
+                        st.info("""
+                        **Moderate customer satisfaction.**
+                        - Some areas need improvement
+                        - Consider gathering more specific feedback
+                        - Look for common themes in negative reviews
+                        """)
+                    else:
+                        st.warning("""
+                        **Low customer satisfaction detected.**
+                        - Immediate attention needed
+                        - Analyze negative feedback for common issues
+                        - Consider customer outreach program
+                        """)
             
-            # Display results
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("📊 Sentiment Analysis")
-                st.metric("Positive Content", f"{sentiment['pos']*100:.1f}%")
-                st.metric("Neutral Content", f"{sentiment['neu']*100:.1f}%")
-                st.metric("Negative Content", f"{sentiment['neg']*100:.1f}%")
-                
-                st.subheader("🏆 Content Quality Score")
-                if health_score >= 70:
-                    st.success(f"{health_score}/100")
-                elif health_score >= 40:
-                    st.warning(f"{health_score}/100")
-                else:
-                    st.error(f"{health_score}/100")
-                st.progress(health_score/100)
-            
-            with col2:
-                st.subheader("☁️ Word Cloud")
-                wc = WordCloud(width=600, height=300, background_color="white").generate(text)
-                fig, ax = plt.subplots()
-                ax.imshow(wc, interpolation="bilinear")
-                ax.axis("off")
-                st.pyplot(fig)
-            
-            # Additional insights
-            st.subheader("💡 Customer Feedback Insights")
-            if health_score > 70:
-                st.success("Overall positive sentiment in the feedback!")
-            elif health_score > 40:
-                st.info("Mixed sentiment in the feedback.")
             else:
-                st.warning("Generally negative sentiment in the feedback.")
+                st.warning("No suitable text columns found for analysis.")
                 
         except Exception as e:
-            st.error(f"Error analyzing CSV: {str(e)}")
+            st.error(f"Error analyzing CSV file: {str(e)}")
+    
+    else:
+        st.info("Please upload a CSV file to analyze customer feedback.")
+
+# Footer
+st.markdown("---")
+st.caption("Bakery Analyzer Tool • Powered by NLP and Sentiment Analysis")
