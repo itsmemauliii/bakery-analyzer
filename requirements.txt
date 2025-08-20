@@ -6,4 +6,5 @@ spacy==3.7.2
 textblob
 wordcloud
 matplotlib
+# install the small English model
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
