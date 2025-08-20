@@ -38,9 +38,14 @@ def extract_products(text):
     return Counter(matches).most_common()
 
 def extract_entities(text):
-    """Lightweight entity-like phrases using TextBlob noun phrases."""
-    blob = TextBlob(text)
-    return blob.noun_phrases[:10]  # just top 10 phrases
+    """
+    Lightweight entity extractor without TextBlob corpora.
+    Returns top repeated capitalized words (likely brand names, places).
+    """
+    # Match capitalized words (not at sentence start)
+    entities = re.findall(r"\b[A-Z][a-zA-Z]{2,}\b", text)
+    common = Counter(entities).most_common(10)
+    return [e for e, _ in common]
 
 def detect_seasonal_specials(text):
     """Detect seasonal/festival keywords."""
