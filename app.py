@@ -25,12 +25,22 @@ if st.button("Analyze"):
             # Keywords
             keywords = extract_keywords(cleaned, top_n=10)
             st.subheader("🔑 Top Keywords (Signature Flavors)")
-            st.write(keywords)
+
+            import pandas as pd
+            import matplotlib.pyplot as plt
+
+            df = pd.DataFrame(keywords, columns=["Keyword", "Frequency"])
+            st.table(df)
+
+            # Bar chart of keywords
+            st.bar_chart(df.set_index("Keyword"))
 
             # Sentiment
             polarity, subjectivity = sentiment_analysis(cleaned)
             st.subheader("💬 Sentiment Analysis")
-            st.write(f"Polarity: {polarity:.2f} | Subjectivity: {subjectivity:.2f}")
+            sentiment_label = "😊 Positive" if polarity > 0 else "😐 Neutral" if polarity == 0 else "☹️ Negative"
+            st.write(f"Polarity: {polarity:.2f} → {sentiment_label}")
+            st.write(f"Subjectivity: {subjectivity:.2f} (0 = objective, 1 = personal opinion)")
 
             # Readability
             st.subheader("📖 Readability Check")
@@ -45,4 +55,4 @@ if st.button("Analyze"):
             st.pyplot(fig)
 
 st.markdown("---")
-st.markdown("Built with ❤️ using NLTK + TextBlob magic ✨")
+st.markdown("Built with ❤️ by Mauli Patel")
