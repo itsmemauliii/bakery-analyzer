@@ -42,4 +42,4 @@ if st.button("Analyze"):
             st.pyplot(fig)
 
 st.markdown("---")
-st.markdown("Built with ❤️ for bakers using NLP magic ✨")
+st.markdown("Built with ❤️ using NLTK + TextBlob magic ✨")
