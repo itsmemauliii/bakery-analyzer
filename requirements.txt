@@ -2,7 +2,7 @@ streamlit
 beautifulsoup4
 requests
 newspaper3k
-spacy
+spacy==3.7.2
 textblob
 wordcloud
 matplotlib
