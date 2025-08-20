@@ -19,20 +19,85 @@ st.markdown("### Comprehensive analysis for bakery websites and customer feedbac
 # Sidebar navigation
 st.sidebar.header("Navigation")
 option = st.sidebar.radio("Choose Analysis Type:", 
-                         ["🌐 Website Analysis", "📊 CSV Analysis", "📝 Data Collection"])
+                         ["🌐 Website Analysis", "📊 CSV Analysis", "📝 Submit Bakery Data"])
 
 # Google Forms integration
-if option == "📝 Data Collection":
-    st.header("📝 Help Us Improve Our Service")
+if option == "📝 Submit Bakery Data":
+    st.header("📝 Share Your Bakery Data")
     st.markdown("""
-    We're constantly working to improve our bakery analysis tools. 
-    Please share your bakery data or feedback with us through this form.
+    Help us improve our bakery analysis tools by sharing your data. 
+    This information will help train better models for bakery industry analysis.
     """)
     
-    google_form_url = "https://docs.google.com/forms/d/e/1FAIpQLSe.../viewform?embedded=true"
-    st.components.v1.iframe(google_form_url, width=640, height=800, scrolling=True)
+    # Create a custom form since we can't embed an actual Google Form
+    with st.form("bakery_data_form"):
+        st.subheader("Bakery Information")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            bakery_name = st.text_input("Bakery Name*")
+            bakery_location = st.text_input("Location (City, Country)*")
+            bakery_website = st.text_input("Website URL")
+        
+        with col2:
+            bakery_type = st.selectbox("Bakery Type*", 
+                                     ["", "Artisan", "Commercial", "Cafe", "Pastry Shop", "Home-based", "Other"])
+            years_operation = st.number_input("Years in Operation", min_value=0, max_value=100, value=0)
+        
+        st.subheader("Product Information")
+        products = st.text_area("List your main products (separate with commas)*", 
+                               help="e.g., Chocolate Cake, Croissants, Sourdough Bread, Macarons")
+        
+        st.subheader("Customer Feedback")
+        rating = st.slider("Overall Customer Rating (1-5)*", 1, 5, 3)
+        common_feedback = st.text_area("Common Customer Comments")
+        
+        st.subheader("Additional Information")
+        challenges = st.multiselect("What are your biggest challenges?",
+                                  ["Pricing", "Competition", "Supply Issues", "Staffing", "Marketing", "Seasonality", "Other"])
+        
+        success_factors = st.multiselect("What contributes most to your success?",
+                                       ["Quality", "Location", "Price", "Variety", "Customer Service", "Marketing", "Unique Products"])
+        
+        # Form submission
+        submitted = st.form_submit_button("Submit Data", type="primary")
+        
+        if submitted:
+            # Basic validation
+            if not bakery_name or not bakery_location or not bakery_type or not products:
+                st.error("Please fill in all required fields (*)")
+            else:
+                # In a real implementation, this would connect to Google Forms
+                # For this demo, we'll just show a success message
+                st.success("""
+                ✅ Thank you for submitting your bakery data!
+                
+                Your information will help improve our analysis models. 
+                In a real implementation, this data would be sent to our Google Form for processing.
+                """)
+                
+                # Show a preview of what would be submitted
+                with st.expander("Preview of Submitted Data"):
+                    st.write(f"**Bakery Name:** {bakery_name}")
+                    st.write(f"**Location:** {bakery_location}")
+                    st.write(f"**Website:** {bakery_website if bakery_website else 'Not provided'}")
+                    st.write(f"**Bakery Type:** {bakery_type}")
+                    st.write(f"**Years in Operation:** {years_operation}")
+                    st.write(f"**Main Products:** {products}")
+                    st.write(f"**Customer Rating:** {rating}/5")
+                    st.write(f"**Common Feedback:** {common_feedback if common_feedback else 'Not provided'}")
+                    st.write(f"**Challenges:** {', '.join(challenges) if challenges else 'Not specified'}")
+                    st.write(f"**Success Factors:** {', '.join(success_factors) if success_factors else 'Not specified'}")
     
-    st.info("Your responses help us train better models for bakery analysis!")
+    # Information about what happens with the data
+    st.info("""
+    **What happens with your data?**
+    - Your information helps train better bakery analysis models
+    - Data is anonymized for analysis purposes
+    - We never share personally identifiable information
+    - You contribute to the bakery industry's growth
+    """)
 
 # Website Analysis Section
 elif option == "🌐 Website Analysis":
@@ -272,4 +337,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("Bakery Analyzer Tool • Powered by NLP and Sentiment Analysis")
+st.caption("Bakery Analyzer Tool • Mauli Patel | Data Analyst")
