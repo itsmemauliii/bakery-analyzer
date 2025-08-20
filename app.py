@@ -3,6 +3,8 @@ from scraper import scrape_website
 from nlp_utils import clean_text, extract_keywords, sentiment_analysis, readability
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("Agg")
 
 st.set_page_config(page_title="Bakery Website Analyzer", layout="wide")
 
