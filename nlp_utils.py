@@ -1,26 +1,26 @@
-import spacy
 from textblob import TextBlob
 from collections import Counter
 import re
+import nltk
 
-# Try loading spaCy model safely
-def load_spacy_model():
-    try:
-        return spacy.load("en_core_web_sm")
-    except OSError:
-        # last-resort fallback in case requirements.txt failed
-        from spacy.cli import download
-        download("en_core_web_sm")
-        return spacy.load("en_core_web_sm")
+# Make sure NLTK has stopwords
+try:
+    nltk.data.find("corpora/stopwords")
+except LookupError:
+    nltk.download("stopwords")
 
-nlp = load_spacy_model()
+from nltk.corpus import stopwords
+
+STOPWORDS = set(stopwords.words("english"))
 
 def clean_text(text):
     return re.sub(r'\s+', ' ', text).strip()
 
 def extract_keywords(text, top_n=10):
-    doc = nlp(text.lower())
-    words = [token.text for token in doc if token.is_alpha and not token.is_stop]
+    words = [
+        w.lower() for w in re.findall(r'\b[a-zA-Z]{3,}\b', text)
+        if w.lower() not in STOPWORDS
+    ]
     common_words = Counter(words).most_common(top_n)
     return common_words
 
