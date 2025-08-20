@@ -49,3 +49,22 @@ def extract_entities(text):
     """Simple Named Entity Recognition using TextBlob (people, places, orgs)."""
     blob = TextBlob(text)
     return blob.noun_phrases[:10]  # top 10 interesting phrases
+
+def detect_seasonal_specials(text):
+    """Find seasonal words like Diwali, Christmas, etc."""
+    seasonal_words = {
+        "diwali": "Highlight festive hampers and sweets for Diwali promotions.",
+        "christmas": "Feature Christmas cakes, cookies, and gift boxes.",
+        "new year": "Promote New Year party cakes and combos.",
+        "valentine": "Push Valentine’s specials like heart-shaped cakes and chocolates.",
+        "easter": "Add Easter eggs, hot cross buns, and themed pastries.",
+        "summer": "Offer cold desserts like ice cream cakes and smoothies.",
+        "winter": "Highlight warm bakery items like brownies, hot chocolate, and plum cake."
+    }
+
+    matches = []
+    for word, tip in seasonal_words.items():
+        if word in text.lower():
+            matches.append((word.capitalize(), tip))
+
+    return matches
