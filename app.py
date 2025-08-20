@@ -1,5 +1,5 @@
 import streamlit as st
-import requests, re
+import requests
 import pandas as pd
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
@@ -36,120 +36,125 @@ if option == "📝 Data Collection":
 # Website Analysis Section
 elif option == "🌐 Website Analysis":
     st.header("🌐 Website Analysis")
-    url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.examplebakery.com")
+    url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.bakingo.com")
     
     if st.button("🔍 Analyze Website", type="primary"):
         with st.spinner("Analyzing website content..."):
             try:
                 headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5',
-                    'Connection': 'keep-alive',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
                 
                 response = requests.get(url, timeout=10, headers=headers)
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
-                # Remove scripts, styles, and other non-content elements
-                for element in soup(["script", "style", "meta", "link", "nav", "footer", "header"]):
-                    element.decompose()
+                # Strategy 1: Look for common e-commerce product elements
+                product_elements = []
                 
-                # Get clean text
-                text = soup.get_text(" ", strip=True).lower()
+                # Look for product cards, items, etc.
+                selectors = [
+                    '[class*="product"]', '[class*="item"]', '[class*="card"]', 
+                    '[class*="menu"]', '.product', '.item', '.card', '.menu-item',
+                    'h1', 'h2', 'h3', 'h4', 'li a', '.title', '.name'
+                ]
                 
-                # Enhanced bakery items detection with better patterns
-                bakery_keywords = {
-                    'cake': r'\b(cakes?|cupcakes?|cheesecakes?|birthday cakes?|wedding cakes?)\b',
-                    'cookie': r'\b(cookies?|biscuits?|bakes?)\b',
-                    'pastry': r'\b(pastries|pastry|croissants?|éclairs?|danishes?)\b',
-                    'bread': r'\b(breads?|loaves|baguettes?|buns?|rolls?|bagels?)\b',
-                    'dessert': r'\b(desserts?|sweets?|treats?|puddings?|mousses?)\b',
-                    'pie': r'\b(pies?|tarts?|quiches?)\b',
-                    'muffin': r'\b(muffins?|scones?)\b',
-                    'brownie': r'\b(brownies?|blondies?)\b',
-                    'donut': r'\b(donuts?|doughnuts?)\b',
-                    'specialty': r'\b(gluten-free|vegan|sugar-free|organic|artisan|handcrafted)\b'
+                for selector in selectors:
+                    product_elements.extend(soup.select(selector))
+                
+                # Extract text from potential product elements
+                potential_products = []
+                for element in product_elements:
+                    text = element.get_text(strip=True)
+                    if 3 < len(text) < 100:  # Reasonable product name length
+                        potential_products.append(text)
+                
+                # Strategy 2: Look for navigation menu items (often contain categories)
+                nav_elements = soup.select('nav a, .menu a, .navigation a, [class*="nav"] a')
+                nav_items = [elem.get_text(strip=True) for elem in nav_elements if 2 < len(elem.get_text(strip=True)) < 50]
+                
+                # Strategy 3: Analyze page text for bakery-related content
+                main_text = soup.get_text()
+                lines = main_text.split('\n')
+                content_lines = [line.strip() for line in lines if 10 < len(line.strip()) < 200]
+                
+                # Combine all sources
+                all_text = potential_products + nav_items + content_lines
+                
+                # Define bakery categories and their keywords
+                bakery_categories = {
+                    'Cakes': ['cake', 'cupcake', 'cheesecake', 'birthday', 'anniversary', 'wedding'],
+                    'Pastries': ['pastry', 'croissant', 'danish', 'éclair', 'puff', 'palmier'],
+                    'Cookies': ['cookie', 'biscuit', 'macaron', 'biscotti', 'shortbread'],
+                    'Breads': ['bread', 'baguette', 'loaf', 'bun', 'roll', 'bagel', 'ciabatta'],
+                    'Desserts': ['dessert', 'mousse', 'pudding', 'tart', 'pie', 'flan', 'soufflé'],
+                    'Specialty': ['vegan', 'gluten-free', 'sugar-free', 'organic', 'artisan', 'custom']
                 }
                 
-                # Find products by looking for common product elements
-                product_elements = soup.find_all(['h1', 'h2', 'h3', 'h4', 'a', 'div', 'span'], 
-                                               class_=re.compile(r'(product|item|menu|title|name)', re.I))
+                # Categorize found items
+                categorized_products = {category: [] for category in bakery_categories.keys()}
+                uncategorized = []
                 
-                found_products = {}
-                detailed_products = []
-                
-                # Extract products from page structure
-                for element in product_elements:
-                    element_text = element.get_text().strip()
-                    if len(element_text) > 3 and len(element_text) < 50:  # Reasonable product name length
-                        for category, pattern in bakery_keywords.items():
-                            if re.search(pattern, element_text.lower()):
-                                if category in found_products:
-                                    found_products[category] += 1
-                                else:
-                                    found_products[category] = 1
-                                detailed_products.append(element_text)
+                for text in all_text:
+                    text_lower = text.lower()
+                    categorized = False
+                    
+                    for category, keywords in bakery_categories.items():
+                        for keyword in keywords:
+                            if keyword in text_lower:
+                                categorized_products[category].append(text)
+                                categorized = True
                                 break
-                
-                # Also search in the text content as fallback
-                if not found_products:
-                    for category, pattern in bakery_keywords.items():
-                        matches = re.findall(pattern, text)
-                        if matches:
-                            found_products[category] = len(matches)
+                        if categorized:
+                            break
+                    
+                    if not categorized and len(text) > 3:
+                        uncategorized.append(text)
                 
                 # Get sentiment from the main content
-                main_content = soup.find_all(['p', 'div', 'section'], 
-                                           class_=re.compile(r'(content|description|about|main)', re.I))
-                
-                content_text = " ".join([elem.get_text() for elem in main_content]) if main_content else text
+                main_content = soup.find_all(['p', 'div', 'section'])
+                content_text = " ".join([elem.get_text() for elem in main_content[:10]]) if main_content else main_text
                 sentiment = sia.polarity_scores(content_text)
-                health = min(100, max(0, int((sentiment["pos"] * 100) + 20)))  # Adjusted scoring
+                health = min(100, max(0, int((sentiment["pos"] * 100) + 30)))  # Adjusted scoring
                 
-                # Improved layout
+                # Display results
                 col1, col2 = st.columns([1.5, 1])
                 
                 with col1:
-                    st.subheader("🎂 Bakery Items Found")
-                    if found_products:
-                        df = pd.DataFrame(found_products.items(), columns=["Category", "Count"]).sort_values("Count", ascending=False)
-                        st.dataframe(df, use_container_width=True, height=300)
-                        
-                        if detailed_products:
-                            st.subheader("📋 Product Names Detected")
-                            for i, product in enumerate(detailed_products[:10]):  # Show first 10 products
-                                st.write(f"{i+1}. {product}")
-                        
-                        # Enhanced word cloud
-                        st.subheader("☁️ Product Word Cloud")
-                        word_freq = " ".join([cat for cat, count in found_products.items() for _ in range(count)])
-                        if word_freq:
-                            wc = WordCloud(width=600, height=300, background_color="white", 
-                                        colormap="autumn", collocations=False).generate(word_freq)
-                            fig, ax = plt.subplots()
-                            ax.imshow(wc, interpolation="bilinear")
-                            ax.axis("off")
-                            st.pyplot(fig)
-                    else:
-                        st.warning("No bakery items detected on this website.")
+                    st.subheader("🎂 Bakery Products Found")
+                    
+                    found_categories = False
+                    for category, products in categorized_products.items():
+                        if products:
+                            found_categories = True
+                            st.markdown(f"**{category}**")
+                            for product in set(products[:5]):  # Show up to 5 unique products per category
+                                st.write(f"- {product}")
+                    
+                    if not found_categories:
+                        st.warning("No specific bakery products detected.")
                         st.info("""
-                        **Tips for better detection:**
-                        - Make sure the website has product information
-                        - Try a different bakery website
-                        - Some websites may block automated access
+                        **This could be because:**
+                        - The website doesn't have a clear product listing
+                        - The website structure is complex
+                        - The bakery specializes in custom orders
                         """)
+                    
+                    # Show uncategorized items that might be products
+                    if uncategorized:
+                        st.subheader("📋 Other Potential Products")
+                        for item in set(uncategorized[:10]):
+                            st.write(f"- {item}")
                 
                 with col2:
                     st.subheader("📊 Sentiment Analysis")
                     
                     # Sentiment gauges
-                    cols_metrics = st.columns(3)
-                    with cols_metrics[0]:
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
                         st.metric("Positive 😊", f"{sentiment['pos']*100:.1f}%")
-                    with cols_metrics[1]:
+                    with col2:
                         st.metric("Neutral 😐", f"{sentiment['neu']*100:.1f}%")
-                    with cols_metrics[2]:
+                    with col3:
                         st.metric("Negative 😞", f"{sentiment['neg']*100:.1f}%")
                     
                     # Health score with color coding
@@ -173,7 +178,7 @@ elif option == "🌐 Website Analysis":
             
             except Exception as e:
                 st.error(f"Error analyzing website: {str(e)}")
-                st.info("This website might be blocking automated access. Try a different website or method.")
+                st.info("This website might be blocking automated access. Try a different website.")
 
 # CSV Analysis Section
 else:
@@ -195,58 +200,35 @@ else:
                 text = " ".join(df.astype(str).sum(axis=1)).lower()
                 
             sentiment = sia.polarity_scores(text)
-            health = min(100, max(0, int(sentiment["pos"]*100 + 20)))
+            health = min(100, max(0, int(sentiment["pos"]*100 + 30)))
             
-            # Extract bakery items from CSV text
-            bakery_keywords = {
-                'cake': r'\b(cakes?|cupcakes?|cheesecakes?)\b',
-                'cookie': r'\b(cookies?|biscuits?)\b',
-                'pastry': r'\b(pastries|pastry|croissants?)\b',
-                'bread': r'\b(breads?|baguettes?|buns?)\b',
-                'dessert': r'\b(desserts?|sweets?)\b',
-                'pie': r'\b(pies?|tarts?)\b'
-            }
+            # Simple word cloud
+            st.subheader("☁️ Word Cloud")
+            wc = WordCloud(width=600, height=300, background_color="white", 
+                         colormap="viridis").generate(text)
+            fig, ax = plt.subplots()
+            ax.imshow(wc, interpolation="bilinear")
+            ax.axis("off")
+            st.pyplot(fig)
             
-            bakery_items = {}
-            for category, pattern in bakery_keywords.items():
-                matches = re.findall(pattern, text)
-                if matches:
-                    bakery_items[category] = len(matches)
-            
-            col1, col2 = st.columns([1, 1])
-            
+            # Sentiment analysis
+            st.subheader("📊 Sentiment Analysis")
+            col1, col2, col3 = st.columns(3)
             with col1:
-                st.subheader("📊 Sentiment Analysis")
-                cols_metrics = st.columns(3)
-                with cols_metrics[0]:
-                    st.metric("Positive 😊", f"{sentiment['pos']*100:.1f}%")
-                with cols_metrics[1]:
-                    st.metric("Neutral 😐", f"{sentiment['neu']*100:.1f}%")
-                with cols_metrics[2]:
-                    st.metric("Negative 😞", f"{sentiment['neg']*100:.1f}%")
-                
-                st.subheader("🏆 Bakery Health Score")
-                if health >= 70:
-                    st.success(f"{health}/100")
-                elif health >= 40:
-                    st.warning(f"{health}/100")
-                else:
-                    st.error(f"{health}/100")
-                st.progress(health/100)
-                
-                if bakery_items:
-                    st.subheader("🍞 Mentioned Bakery Items")
-                    for item, count in bakery_items.items():
-                        st.write(f"- {item}: {count} mentions")
-            
+                st.metric("Positive 😊", f"{sentiment['pos']*100:.1f}%")
             with col2:
-                st.subheader("☁️ Word Cloud")
-                wc = WordCloud(width=600, height=300, background_color="white", 
-                             colormap="viridis").generate(text)
-                fig, ax = plt.subplots()
-                ax.imshow(wc, interpolation="bilinear")
-                ax.axis("off")
-                st.pyplot(fig)
+                st.metric("Neutral 😐", f"{sentiment['neu']*100:.1f}%")
+            with col3:
+                st.metric("Negative 😞", f"{sentiment['neg']*100:.1f}%")
+            
+            st.subheader("🏆 Bakery Health Score")
+            if health >= 70:
+                st.success(f"{health}/100")
+            elif health >= 40:
+                st.warning(f"{health}/100")
+            else:
+                st.error(f"{health}/100")
+            st.progress(health/100)
             
             # Additional insights
             st.subheader("💡 Customer Feedback Insights")
