@@ -36,84 +36,109 @@ if option == "📝 Data Collection":
 # Website Analysis Section
 elif option == "🌐 Website Analysis":
     st.header("🌐 Website Analysis")
-    url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.bakingo.com")
+    url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.examplebakery.com")
     
     if st.button("🔍 Analyze Website", type="primary"):
         with st.spinner("Analyzing website content..."):
             try:
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-                html = requests.get(url, timeout=8, headers=headers).text
-                soup = BeautifulSoup(html, "html.parser")
-                
-                # Remove scripts and styles
-                for script in soup(["script", "style", "meta", "link"]):
-                    script.decompose()
-                
-                text = soup.get_text(" ", strip=True).lower()
-                
-                # Enhanced bakery items list with patterns
-                item_patterns = {
-                    "cake": r"\bcakes?\b",
-                    "cookie": r"\bcookies?\b",
-                    "pastry": r"\bpastr(y|ies)\b",
-                    "bread": r"\bbreads?\b",
-                    "cupcake": r"\bcupcakes?\b",
-                    "brownie": r"\bbrownies?\b",
-                    "pizza": r"\bpizzas?\b",
-                    "bun": r"\bbuns?\b",
-                    "biscuit": r"\bbiscuits?\b",
-                    "muffin": r"\bmuffins?\b",
-                    "donut": r"\bdonuts?\b",
-                    "croissant": r"\bcroissants?\b",
-                    "bagel": r"\bbagels?\b",
-                    "tart": r"\btarts?\b",
-                    "pie": r"\bpies?\b",
-                    "dessert": r"\bdesserts?\b",
-                    "cheesecake": r"\bcheesecakes?\b",
-                    "eclair": r"\beclairs?\b",
-                    "macaron": r"\bmacarons?\b",
-                    "scone": r"\bscones?\b"
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Connection': 'keep-alive',
                 }
                 
-                found = {}
-                for item, pattern in item_patterns.items():
-                    matches = re.findall(pattern, text)
-                    if matches:
-                        count = len(matches)
-                        # Use singular form for consistency
-                        key = item if count == 1 else item + "s"
-                        found[key] = count
+                response = requests.get(url, timeout=10, headers=headers)
+                soup = BeautifulSoup(response.content, 'html.parser')
                 
-                sentiment = sia.polarity_scores(text)
-                health = int((sentiment["pos"] * 100))
+                # Remove scripts, styles, and other non-content elements
+                for element in soup(["script", "style", "meta", "link", "nav", "footer", "header"]):
+                    element.decompose()
+                
+                # Get clean text
+                text = soup.get_text(" ", strip=True).lower()
+                
+                # Enhanced bakery items detection with better patterns
+                bakery_keywords = {
+                    'cake': r'\b(cakes?|cupcakes?|cheesecakes?|birthday cakes?|wedding cakes?)\b',
+                    'cookie': r'\b(cookies?|biscuits?|bakes?)\b',
+                    'pastry': r'\b(pastries|pastry|croissants?|éclairs?|danishes?)\b',
+                    'bread': r'\b(breads?|loaves|baguettes?|buns?|rolls?|bagels?)\b',
+                    'dessert': r'\b(desserts?|sweets?|treats?|puddings?|mousses?)\b',
+                    'pie': r'\b(pies?|tarts?|quiches?)\b',
+                    'muffin': r'\b(muffins?|scones?)\b',
+                    'brownie': r'\b(brownies?|blondies?)\b',
+                    'donut': r'\b(donuts?|doughnuts?)\b',
+                    'specialty': r'\b(gluten-free|vegan|sugar-free|organic|artisan|handcrafted)\b'
+                }
+                
+                # Find products by looking for common product elements
+                product_elements = soup.find_all(['h1', 'h2', 'h3', 'h4', 'a', 'div', 'span'], 
+                                               class_=re.compile(r'(product|item|menu|title|name)', re.I))
+                
+                found_products = {}
+                detailed_products = []
+                
+                # Extract products from page structure
+                for element in product_elements:
+                    element_text = element.get_text().strip()
+                    if len(element_text) > 3 and len(element_text) < 50:  # Reasonable product name length
+                        for category, pattern in bakery_keywords.items():
+                            if re.search(pattern, element_text.lower()):
+                                if category in found_products:
+                                    found_products[category] += 1
+                                else:
+                                    found_products[category] = 1
+                                detailed_products.append(element_text)
+                                break
+                
+                # Also search in the text content as fallback
+                if not found_products:
+                    for category, pattern in bakery_keywords.items():
+                        matches = re.findall(pattern, text)
+                        if matches:
+                            found_products[category] = len(matches)
+                
+                # Get sentiment from the main content
+                main_content = soup.find_all(['p', 'div', 'section'], 
+                                           class_=re.compile(r'(content|description|about|main)', re.I))
+                
+                content_text = " ".join([elem.get_text() for elem in main_content]) if main_content else text
+                sentiment = sia.polarity_scores(content_text)
+                health = min(100, max(0, int((sentiment["pos"] * 100) + 20)))  # Adjusted scoring
                 
                 # Improved layout
                 col1, col2 = st.columns([1.5, 1])
                 
                 with col1:
                     st.subheader("🎂 Bakery Items Found")
-                    if found:
-                        df = pd.DataFrame(found.items(), columns=["Item", "Count"]).sort_values("Count", ascending=False)
+                    if found_products:
+                        df = pd.DataFrame(found_products.items(), columns=["Category", "Count"]).sort_values("Count", ascending=False)
                         st.dataframe(df, use_container_width=True, height=300)
+                        
+                        if detailed_products:
+                            st.subheader("📋 Product Names Detected")
+                            for i, product in enumerate(detailed_products[:10]):  # Show first 10 products
+                                st.write(f"{i+1}. {product}")
                         
                         # Enhanced word cloud
                         st.subheader("☁️ Product Word Cloud")
-                        word_freq = " ".join([item for item, count in found.items() for _ in range(count)])
-                        wc = WordCloud(width=600, height=300, background_color="white", 
-                                    colormap="autumn", collocations=False).generate(word_freq)
-                        fig, ax = plt.subplots()
-                        ax.imshow(wc, interpolation="bilinear")
-                        ax.axis("off")
-                        st.pyplot(fig)
+                        word_freq = " ".join([cat for cat, count in found_products.items() for _ in range(count)])
+                        if word_freq:
+                            wc = WordCloud(width=600, height=300, background_color="white", 
+                                        colormap="autumn", collocations=False).generate(word_freq)
+                            fig, ax = plt.subplots()
+                            ax.imshow(wc, interpolation="bilinear")
+                            ax.axis("off")
+                            st.pyplot(fig)
                     else:
-                        st.info("No bakery items detected on this website")
-                        # Try alternative approach by looking for product listings
-                        product_elements = soup.find_all(['h1', 'h2', 'h3', 'h4', 'a'], string=re.compile(r'\b(cake|cookie|pastry|bread|bun|biscuit|muffin|donut)\b', re.I))
-                        if product_elements:
-                            st.subheader("🔍 Potential Products Found")
-                            products = [elem.get_text().strip() for elem in product_elements[:10]]
-                            for product in products:
-                                st.write(f"- {product}")
+                        st.warning("No bakery items detected on this website.")
+                        st.info("""
+                        **Tips for better detection:**
+                        - Make sure the website has product information
+                        - Try a different bakery website
+                        - Some websites may block automated access
+                        """)
                 
                 with col2:
                     st.subheader("📊 Sentiment Analysis")
@@ -140,14 +165,15 @@ elif option == "🌐 Website Analysis":
                     # Additional insights
                     st.subheader("💡 Insights")
                     if health > 70:
-                        st.info("This bakery website has very positive content!")
+                        st.success("This bakery website has very positive content! Great marketing.")
                     elif health > 40:
                         st.info("This bakery website has neutral to moderately positive content.")
                     else:
                         st.warning("This bakery website may need content improvements.")
             
             except Exception as e:
-                st.error(f"Error analyzing website: {e}")
+                st.error(f"Error analyzing website: {str(e)}")
+                st.info("This website might be blocking automated access. Try a different website or method.")
 
 # CSV Analysis Section
 else:
@@ -160,7 +186,8 @@ else:
             st.write("Preview of Data:", df.head())
             
             # Find text columns for analysis
-            text_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in ['review', 'text', 'comment', 'feedback', 'product', 'description'])]
+            text_columns = [col for col in df.columns if any(keyword in col.lower() for keyword in 
+                          ['review', 'text', 'comment', 'feedback', 'product', 'description', 'name'])]
             
             if text_columns:
                 text = " ".join(df[text_columns[0]].astype(str)).lower()
@@ -168,27 +195,23 @@ else:
                 text = " ".join(df.astype(str).sum(axis=1)).lower()
                 
             sentiment = sia.polarity_scores(text)
-            health = int(sentiment["pos"]*100)
+            health = min(100, max(0, int(sentiment["pos"]*100 + 20)))
             
             # Extract bakery items from CSV text
-            bakery_items = {}
-            item_patterns = {
-                "cake": r"\bcakes?\b",
-                "cookie": r"\bcookies?\b",
-                "pastry": r"\bpastr(y|ies)\b",
-                "bread": r"\bbreads?\b",
-                "cupcake": r"\bcupcakes?\b",
-                "brownie": r"\bbrownies?\b",
-                "muffin": r"\bmuffins?\b",
-                "donut": r"\bdonuts?\b"
+            bakery_keywords = {
+                'cake': r'\b(cakes?|cupcakes?|cheesecakes?)\b',
+                'cookie': r'\b(cookies?|biscuits?)\b',
+                'pastry': r'\b(pastries|pastry|croissants?)\b',
+                'bread': r'\b(breads?|baguettes?|buns?)\b',
+                'dessert': r'\b(desserts?|sweets?)\b',
+                'pie': r'\b(pies?|tarts?)\b'
             }
             
-            for item, pattern in item_patterns.items():
+            bakery_items = {}
+            for category, pattern in bakery_keywords.items():
                 matches = re.findall(pattern, text)
                 if matches:
-                    count = len(matches)
-                    key = item if count == 1 else item + "s"
-                    bakery_items[key] = count
+                    bakery_items[category] = len(matches)
             
             col1, col2 = st.columns([1, 1])
             
