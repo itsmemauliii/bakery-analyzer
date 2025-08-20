@@ -1,90 +1,81 @@
-# app.py
-import streamlit as st, requests, re, io
-from bs4 import BeautifulSoup
-from collections import Counter
+import streamlit as st
+import requests, re
+import pandas as pd
 import matplotlib.pyplot as plt
+from bs4 import BeautifulSoup
 from wordcloud import WordCloud
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet
 from nltk.sentiment import SentimentIntensityAnalyzer
-import nltk; nltk.download("vader_lexicon", quiet=True)
+import nltk
 
-st.set_page_config(page_title="Creative Bakery Helper", page_icon="🍩", layout="wide")
-st.title("🍩 Your Bakery Helper – Smart Bakery Store Analyzer")
+nltk.download("vader_lexicon", quiet=True)
+sia = SentimentIntensityAnalyzer()
 
-# --- Functions ---
-def fetch_text(url):
-    try: return BeautifulSoup(requests.get(url, timeout=10).text,"html.parser").get_text(" ")
-    except: return ""
+st.set_page_config(page_title="🍰 Your Bakery Helper", layout="wide")
+st.title("🍞 Your Bakery Helper – Smart Bakery Store Analyzer")
 
-def extract_items(text):
-    words=["cake","cakes","cookie","cookies","bread","pastry","pastries",
-           "brownie","cupcake","pizza","biscuit","biscuits","gift","khari"]
-    tokens=re.findall(r"\b[a-zA-Z]+\b", text.lower())
-    return Counter([t for t in tokens if t in words]).most_common(10)
+option = st.radio("Choose Input Method:", ["🌐 Website URL", "📂 Upload CSV"])
 
-def seasonal_specials(text):
-    sp={"christmas":"Festive Cakes 🎄","valentine":"Valentine Offers ❤️","new year":"New Year Treats 🎉"}
-    return [(k,v) for k,v in sp.items() if k in text.lower()]
+# ---------------- Website Analysis ---------------- #
+if option == "🌐 Website URL":
+    url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.bakingo.com")
 
-def sentiment_summary(text): return SentimentIntensityAnalyzer().polarity_scores(text)
+    if st.button("🔍 Analyze Website"):
+        try:
+            html = requests.get(url, timeout=8).text
+            text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True).lower()
 
-def plot_sentiment(sentiment):
-    labels,vals=["Positive","Neutral","Negative"],[sentiment["pos"],sentiment["neu"],sentiment["neg"]]
-    plt.pie(vals,labels=labels,autopct="%1.1f%%",startangle=90,colors=["green","gray","red"])
-    buf=io.BytesIO(); plt.savefig(buf,format="PNG"); plt.close(); buf.seek(0); return buf
+            items = ["cake","cakes","cookies","pastry","pastries","bread",
+                     "cupcake","brownie","pizza","bun","biscuits","gift"]
 
-def recommendations(items):
-    rec=[]
-    if not items: return [("❌","No products detected – add more bakery content!","red")]
-    top=items[0][0]
-    if "cake" in top: rec.append(("✅","Promote cakes with seasonal flavors (chocolate, fruit).","green"))
-    if "cookie" in [i[0] for i in items]: rec.append(("✅","Bundle cookies with beverages for upselling.","green"))
-    if "bread" in [i[0] for i in items]: rec.append(("✅","Highlight artisan breads or sourdough specials.","green"))
-    if len(items)<3: rec.append(("⚠️","Expand product variety on your website.","orange"))
-    return rec
+            found = {i: len(re.findall(rf"\b{i}\b", text)) for i in items if re.search(rf"\b{i}\b", text)}
+            sentiment = sia.polarity_scores(text)
+            health = int((sentiment["pos"] * 100))
 
-def bakery_score(items,sentiment):
-    score=50
-    if items: score+=min(20,len(items)*5)   # reward variety
-    score+=int(sentiment["pos"]*20)         # reward positive sentiment
-    score-=int(sentiment["neg"]*20)         # penalty for negative
-    return max(0,min(100,score))
+            col1, col2 = st.columns([1.3,1])
+            with col1:
+                st.subheader("🎂 Items Found")
+                df = pd.DataFrame(found.items(), columns=["Item","Count"]).sort_values("Count", ascending=False)
+                st.dataframe(df, use_container_width=True)
 
-def generate_pdf(url,items,specials,sentiment,keywords,pie_buf,score):
-    buf=io.BytesIO(); doc=SimpleDocTemplate(buf); styles=getSampleStyleSheet(); elems=[]
-    elems+=[Paragraph("🍩 Creative Bakery Store Analysis",styles['Title']),
-            Paragraph(f"Website: {url}",styles['Normal']),Spacer(1,12)]
-    elems.append(Paragraph(f"Health Score: {score}/100",styles['Heading2']))
-    if items: elems.append(Paragraph("Top Items:",styles['Heading2']))
-    for k,v in items: elems.append(Paragraph(f"{k.capitalize()} – {v}",styles['Normal']))
-    if specials: elems.append(Paragraph("Seasonal Specials:",styles['Heading2']))
-    for k,v in specials: elems.append(Paragraph(f"{k.capitalize()} → {v}",styles['Normal']))
-    elems.append(Paragraph("Sentiment Scores:",styles['Heading2']))
-    elems.append(Paragraph(str(sentiment),styles['Normal'])); elems.append(Image(pie_buf,300,200))
-    elems.append(Paragraph("Recommendations:",styles['Heading2']))
-    for icon,text,_ in recommendations(items): elems.append(Paragraph(icon+" "+text,styles['Normal']))
-    if keywords:
-        wc=WordCloud(width=500,height=200,background_color="white").generate(" ".join(keywords))
-        img=io.BytesIO(); plt.imshow(wc); plt.axis("off"); plt.savefig(img,format="PNG");plt.close()
-        img.seek(0); elems.append(Image(img,400,150))
-    doc.build(elems); buf.seek(0); return buf
+                st.subheader("☁️ Word Cloud")
+                wc = WordCloud(width=500, height=300, background_color="black").generate(" ".join(df["Item"].repeat(df["Count"])))
+                fig, ax = plt.subplots()
+                ax.imshow(wc, interpolation="bilinear"); ax.axis("off")
+                st.pyplot(fig)
 
-# --- Streamlit UI ---
-url=st.text_input("Enter Bakery Website URL:")
-if st.button("Analyze"):
-    text=fetch_text(url)
-    if not text: st.error("Could not fetch website"); st.stop()
-    items, specials, sentiment = extract_items(text), seasonal_specials(text), sentiment_summary(text)
-    keywords=[w for w,_ in items]; score=bakery_score(items,sentiment)
-    st.metric("🏆 Bakery Health Score", f"{score}/100")
-    col1,col2=st.columns(2)
-    with col1: st.subheader("🍰 Items Found"); st.table(items)
-    with col2: st.subheader("💬 Sentiment Scores"); st.json(sentiment); pie_buf=plot_sentiment(sentiment); st.image(pie_buf)
-    st.subheader("☁️ WordCloud"); wc=WordCloud(width=600,height=300,background_color="white").generate(" ".join(keywords))
-    plt.imshow(wc); plt.axis("off"); st.pyplot(plt.gcf()); plt.close()
-    st.subheader("📌 Recommendations")
-    for icon,text,color in recommendations(items):
-        st.markdown(f"<span style='color:{color}; font-weight:bold'>{icon} {text}</span>", unsafe_allow_html=True)
-    pdf=generate_pdf(url,items,specials,sentiment,keywords,pie_buf,score)
-    st.download_button("📥 Download PDF Report",data=pdf,file_name="bakery_report.pdf")
+            with col2:
+                st.subheader("📊 Sentiment")
+                st.metric("Positive 😊", f"{sentiment['pos']*100:.1f}%")
+                st.metric("Neutral 😐", f"{sentiment['neu']*100:.1f}%")
+                st.metric("Negative 😞", f"{sentiment['neg']*100:.1f}%")
+
+                st.subheader("🏆 Bakery Health Score")
+                st.progress(health); st.success(f"{health}/100")
+
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+# ---------------- CSV Analysis ---------------- #
+else:
+    file = st.file_uploader("📂 Upload CSV (with 'review' or 'product' column)", type=["csv"])
+    if file is not None:
+        df = pd.read_csv(file)
+        st.write("Preview of Data:", df.head())
+
+        text = " ".join(df.astype(str).sum(axis=1)).lower()
+        sentiment = sia.polarity_scores(text)
+        health = int(sentiment["pos"]*100)
+
+        st.subheader("📊 Sentiment from CSV")
+        st.metric("Positive 😊", f"{sentiment['pos']*100:.1f}%")
+        st.metric("Neutral 😐", f"{sentiment['neu']*100:.1f}%")
+        st.metric("Negative 😞", f"{sentiment['neg']*100:.1f}%")
+
+        st.subheader("🏆 Bakery Health Score")
+        st.progress(health); st.success(f"{health}/100")
+
+        st.subheader("☁️ Word Cloud from Data")
+        wc = WordCloud(width=600, height=300, background_color="white").generate(text)
+        fig, ax = plt.subplots()
+        ax.imshow(wc, interpolation="bilinear"); ax.axis("off")
+        st.pyplot(fig)
