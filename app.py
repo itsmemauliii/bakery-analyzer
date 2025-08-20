@@ -4,7 +4,7 @@ matplotlib.use("Agg")  # safe backend for Streamlit Cloud
 import streamlit as st
 import pandas as pd
 from scraper import scrape_website
-from nlp_utils import clean_text, extract_keywords, sentiment_analysis, readability, extract_products, extract_entities
+from nlp_utils import clean_text, extract_keywords, sentiment_analysis, readability, extract_products, extract_entities, detect_seasonal_specials
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -19,7 +19,7 @@ st.title("🍩 Bakery Website NLP Analyzer")
 st.write("Paste your bakery website URL and let’s see what flavors your words reveal!")
 
 # PDF builder
-def build_pdf(url, df, polarity, subjectivity, avg_word_len, summary, suggestions, wc_png_bytes, products, entities):
+def build_pdf(url, df, polarity, subjectivity, avg_word_len, summary, suggestions, wc_png_bytes, products, entities, seasonal):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -75,6 +75,17 @@ def build_pdf(url, df, polarity, subjectivity, avg_word_len, summary, suggestion
     y -= 0.7 * cm
     for e in entities:
         line(f"- {e}")
+
+    # Seasonal
+    y -= 0.5 * cm
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(left, y, "Seasonal Specials")
+    y -= 0.7 * cm
+    if seasonal:
+        for word, tip in seasonal:
+            line(f"{word}: {tip}")
+    else:
+        line("No seasonal specials found.")
 
     # Suggestions
     y -= 0.5 * cm
@@ -142,6 +153,15 @@ if st.button("Analyze"):
             st.subheader("🏷 Brand Mentions / Entities")
             st.write(entities)
 
+            # Seasonal Specials
+            seasonal = detect_seasonal_specials(cleaned)
+            st.subheader("🎉 Seasonal Specials")
+            if seasonal:
+                for word, tip in seasonal:
+                    st.markdown(f"- **{word}** → {tip}")
+            else:
+                st.write("No seasonal promotions detected.")
+
             # WordCloud
             wc = WordCloud(width=800, height=400, background_color="white").generate(cleaned)
             fig, ax = plt.subplots()
@@ -172,6 +192,6 @@ if st.button("Analyze"):
 
             # PDF download
             pdf_bytes = build_pdf(url, df_keywords, polarity, subjectivity, avg_len,
-                                  "Summary", suggestions, wc_png_bytes, products, entities)
+                                  "Summary", suggestions, wc_png_bytes, products, entities, seasonal)
             st.download_button("📄 Download PDF Report", data=pdf_bytes,
                                file_name="bakery_nlp_report.pdf", mime="application/pdf")
