@@ -3,8 +3,8 @@ beautifulsoup4
 requests
 newspaper3k
 textblob
+nltk
 wordcloud
 matplotlib
-nltk
 pandas
 reportlab
