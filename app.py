@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from wordcloud import WordCloud
 from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk
+import re
 
 nltk.download("vader_lexicon", quiet=True)
 sia = SentimentIntensityAnalyzer()
@@ -54,7 +55,7 @@ elif option == "🌐 Website Analysis":
             # Get clean text
             text = soup.get_text(separator=' ', strip=True)
             
-            # Look for obvious product listings (more reliable approach)
+            # Look for obvious product listings
             potential_products = []
             
             # Method 1: Look for common product listing patterns
@@ -66,7 +67,7 @@ elif option == "🌐 Website Analysis":
                 elements = soup.find_all(class_=re.compile(pattern))
                 for element in elements:
                     product_text = element.get_text(strip=True)
-                    if 10 < len(product_text) < 100:  # Reasonable product name length
+                    if 10 < len(product_text) < 100:
                         potential_products.append(product_text)
             
             # Method 2: Look for headings that might be product categories
@@ -90,7 +91,7 @@ elif option == "🌐 Website Analysis":
             
             # Sentiment analysis
             sentiment = sia.polarity_scores(text)
-            health_score = min(100, max(0, int(sentiment["pos"] * 80 + 20)))  # More realistic scoring
+            health_score = min(100, max(0, int(sentiment["pos"] * 80 + 20)))
             
             # Display results
             col1, col2 = st.columns([2, 1])
@@ -100,13 +101,13 @@ elif option == "🌐 Website Analysis":
                 
                 if potential_products:
                     st.write("**Potential products found:**")
-                    for i, product in enumerate(potential_products[:10], 1):  # Show first 10 only
+                    for i, product in enumerate(potential_products[:10], 1):
                         st.write(f"{i}. {product}")
                     
                     if len(potential_products) > 10:
                         st.info(f"... and {len(potential_products) - 10} more items")
                 else:
-                    st.info("No specific product listings detected. This is common with modern websites.")
+                    st.info("No specific product listings detected.")
                 
                 if found_terms:
                     st.write("**Bakery terms mentioned:**")
@@ -116,7 +117,6 @@ elif option == "🌐 Website Analysis":
             with col2:
                 st.subheader("📊 Sentiment Analysis")
                 
-                # Sentiment gauges
                 st.metric("Positive Content", f"{sentiment['pos']*100:.1f}%")
                 st.metric("Neutral Content", f"{sentiment['neu']*100:.1f}%")
                 st.metric("Negative Content", f"{sentiment['neg']*100:.1f}%")
@@ -134,45 +134,20 @@ elif option == "🌐 Website Analysis":
             st.subheader("💡 Realistic Assessment")
             
             if not potential_products and not found_terms:
-                st.warning("""
-                **Could not extract specific product information.**
-                
-                This is common because:
-                1. Modern websites often load content dynamically with JavaScript
-                2. Product information might be in images rather than text
-                3. The website might use complex structures that are hard to parse automatically
-                
-                **For accurate product information**, consider:
-                - Manually browsing the website
-                - Using the website's search function
-                - Contacting the bakery directly
-                """)
-            elif found_terms but not potential_products:
+                st.warning("Could not extract specific product information.")
                 st.info("""
-                **Found bakery-related content but no specific product listings.**
-                
-                This suggests the website:
-                1. Talks about bakery products generally rather than listing specific items
-                2. Might have products behind login walls or in other sections
-                3. Could be using images for product displays instead of text
+                This is common because:
+                - Modern websites often load content dynamically with JavaScript
+                - Product information might be in images rather than text
+                - The website might use complex structures
                 """)
+            elif found_terms and not potential_products:
+                st.info("Found bakery-related content but no specific product listings.")
             else:
-                st.success("""
-                **Found some product information.**
-                
-                Note: Automated extraction is never 100% accurate.
-                For complete product catalogs, check the website directly.
-                """)
+                st.success("Found some product information.")
         
         except Exception as e:
             st.error(f"Could not analyze website: {str(e)}")
-            st.info("""
-            **Common reasons for failure:**
-            - Website requires JavaScript to load content
-            - Website blocks automated requests
-            - Connection timeout or network issues
-            - Invalid website URL
-            """)
 
 # CSV Analysis Section
 else:
