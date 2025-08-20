@@ -79,6 +79,14 @@ def apply_clean_design():
         padding-top: 2rem;
         padding-bottom: 2rem;
     }
+    
+    /* Google Form styling */
+    .google-form-container {
+        margin: 20px 0;
+        border: 1px solid #E0E0E0;
+        border-radius: 8px;
+        overflow: hidden;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -268,15 +276,19 @@ else:
     This information helps train better models for the bakery industry.
     """)
     
-    # Google Form embed code (replace with your actual form URL)
-    google_form_url = "https://docs.google.com/forms/d/e/1FAIpQLScEXAMPLE/viewform?embedded=true"
-    
-    st.components.v1.iframe(
-        src=google_form_url, 
-        width=640, 
-        height=800, 
-        scrolling=True
-    )
+    # Google Form embed code
+    st.markdown("""
+    <div class="google-form-container">
+        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSeEXAMPLE/viewform?embedded=true" 
+                width="100%" 
+                height="800" 
+                frameborder="0" 
+                marginheight="0" 
+                marginwidth="0">
+            Loading…
+        </iframe>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("""
     <div style="background-color: #E8F5E9; padding: 15px; border-radius: 8px; margin-top: 20px;">
@@ -285,9 +297,23 @@ else:
             <li>Bakery product information</li>
             <li>Customer feedback data</li>
             <li>Business performance metrics</li>
+            <li>Product images (optional)</li>
+            <li>Menu/pricing information</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Additional information
+    with st.expander("Why share your data?"):
+        st.write("""
+        By sharing your bakery data, you help us:
+        - Improve our analysis algorithms
+        - Create better benchmarks for the industry
+        - Develop more accurate sentiment analysis
+        - Identify trends in customer preferences
+        
+        All data is anonymized and aggregated. We never share personally identifiable information.
+        """)
 
 # Minimal footer
 st.markdown("---")
