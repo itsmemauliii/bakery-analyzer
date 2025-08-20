@@ -1,6 +1,6 @@
-import re
 from textblob import TextBlob
 from collections import Counter
+import re
 import nltk
 
 # Ensure stopwords are available
