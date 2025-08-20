@@ -3,9 +3,12 @@ import nltk
 from collections import Counter
 from textblob import TextBlob
 
-# Download nltk data if not already
-nltk.download("punkt", quiet=True)
-nltk.download("averaged_perceptron_tagger", quiet=True)
+# Ensure required NLTK data is available
+for pkg in ["punkt", "punkt_tab", "averaged_perceptron_tagger"]:
+    try:
+        nltk.data.find(f"tokenizers/{pkg}")
+    except LookupError:
+        nltk.download(pkg, quiet=True)
 
 def clean_text(text):
     text = re.sub(r"\s+", " ", text)
@@ -46,12 +49,10 @@ def extract_products(text):
     return Counter(matches).most_common()
 
 def extract_entities(text):
-    """Simple Named Entity Recognition using TextBlob (people, places, orgs)."""
     blob = TextBlob(text)
-    return blob.noun_phrases[:10]  # top 10 interesting phrases
+    return blob.noun_phrases[:10]
 
 def detect_seasonal_specials(text):
-    """Find seasonal words like Diwali, Christmas, etc."""
     seasonal_words = {
         "diwali": "Highlight festive hampers and sweets for Diwali promotions.",
         "christmas": "Feature Christmas cakes, cookies, and gift boxes.",
@@ -61,10 +62,8 @@ def detect_seasonal_specials(text):
         "summer": "Offer cold desserts like ice cream cakes and smoothies.",
         "winter": "Highlight warm bakery items like brownies, hot chocolate, and plum cake."
     }
-
     matches = []
     for word, tip in seasonal_words.items():
         if word in text.lower():
             matches.append((word.capitalize(), tip))
-
     return matches
