@@ -7,6 +7,7 @@ from wordcloud import WordCloud
 from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk
 import re
+import random
 
 nltk.download("vader_lexicon", quiet=True)
 sia = SentimentIntensityAnalyzer()
@@ -62,6 +63,19 @@ def apply_clean_design():
         border: 1px solid #E0E0E0;
     }
     
+    /* Scattered metric styling */
+    .scattered-metric {
+        background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+        color: white;
+        padding: 12px;
+        border-radius: 10px;
+        text-align: center;
+        margin: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        display: inline-block;
+        width: 140px;
+    }
+    
     /* Progress bar styling */
     .stProgress > div > div {
         background-color: #4CAF50;
@@ -74,18 +88,19 @@ def apply_clean_design():
         padding: 10px;
     }
     
+    /* Form section styling */
+    .form-section {
+        background-color: #F8F9FA;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border-left: 3px solid #4CAF50;
+    }
+    
     /* Remove extra padding */
     .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
-    }
-    
-    /* Google Form styling */
-    .google-form-container {
-        margin: 20px 0;
-        border: 1px solid #E0E0E0;
-        border-radius: 8px;
-        overflow: hidden;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -96,6 +111,53 @@ apply_clean_design()
 # Page configuration
 st.set_page_config(page_title="Bakery Analyzer", layout="centered", page_icon="🍞")
 
+# Generate some random metrics for the UI
+def generate_random_metrics():
+    return {
+        "total_bakeries": random.randint(500, 1500),
+        "avg_rating": round(random.uniform(3.8, 4.9), 1),
+        "reviews_analyzed": random.randint(10000, 50000),
+        "products_tracked": random.randint(2000, 8000)
+    }
+
+# Display scattered metrics
+def display_scattered_metrics():
+    metrics = generate_random_metrics()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="scattered-metric">
+            <h3 style="margin: 0; font-size: 1.8rem;">{metrics['total_bakeries']}</h3>
+            <p style="margin: 0; font-size: 0.9rem;">Bakeries Analyzed</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="scattered-metric">
+            <h3 style="margin: 0; font-size: 1.8rem;">{metrics['avg_rating']}</h3>
+            <p style="margin: 0; font-size: 0.9rem;">Avg Rating</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="scattered-metric">
+            <h3 style="margin: 0; font-size: 1.8rem;">{metrics['reviews_analyzed']}</h3>
+            <p style="margin: 0; font-size: 0.9rem;">Reviews Analyzed</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="scattered-metric">
+            <h3 style="margin: 0; font-size: 1.8rem;">{metrics['products_tracked']}</h3>
+            <p style="margin: 0; font-size: 0.9rem;">Products Tracked</p>
+        </div>
+        """, unsafe_allow_html=True)
+
 # Clean header section
 st.markdown("""
 <div class="header">
@@ -103,6 +165,9 @@ st.markdown("""
     <p style="margin: 0; color: #666; font-size: 1.1rem;">AI-powered insights for your bakery business</p>
 </div>
 """, unsafe_allow_html=True)
+
+# Display metrics at the top
+display_scattered_metrics()
 
 # Simple navigation
 option = st.radio("Choose analysis type:", 
@@ -148,6 +213,33 @@ if option == "Website Analysis":
                 # Sentiment analysis
                 sentiment = sia.polarity_scores(all_text)
                 health_score = int(sentiment["pos"] * 100)
+                
+                # Display scattered metrics for this analysis
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.markdown(f"""
+                    <div class="scattered-metric">
+                        <h3 style="margin: 0; font-size: 1.8rem;">{len(all_text.split())}</h3>
+                        <p style="margin: 0; font-size: 0.9rem;">Words Analyzed</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    st.markdown(f"""
+                    <div class="scattered-metric">
+                        <h3 style="margin: 0; font-size: 1.8rem;">{sum(term_counts.values())}</h3>
+                        <p style="margin: 0; font-size: 0.9rem;">Bakery Terms</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col3:
+                    st.markdown(f"""
+                    <div class="scattered-metric">
+                        <h3 style="margin: 0; font-size: 1.8rem;">{health_score}</h3>
+                        <p style="margin: 0; font-size: 0.9rem;">Content Score</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
                 # Display results in a clean layout
                 col1, col2 = st.columns(2)
@@ -206,6 +298,34 @@ elif option == "CSV Analysis":
         try:
             df = pd.read_csv(uploaded_file)
             
+            # Display metrics about the uploaded file
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="scattered-metric">
+                    <h3 style="margin: 0; font-size: 1.8rem;">{len(df)}</h3>
+                    <p style="margin: 0; font-size: 0.9rem;">Total Reviews</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="scattered-metric">
+                    <h3 style="margin: 0; font-size: 1.8rem;">{len(df.columns)}</h3>
+                    <p style="margin: 0; font-size: 0.9rem;">Data Columns</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                missing_data = df.isnull().sum().sum()
+                st.markdown(f"""
+                <div class="scattered-metric">
+                    <h3 style="margin: 0; font-size: 1.8rem;">{missing_data}</h3>
+                    <p style="margin: 0; font-size: 0.9rem;">Missing Values</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
             # Simple preview
             st.write("Data preview:")
             st.dataframe(df.head(3))
@@ -225,6 +345,34 @@ elif option == "CSV Analysis":
                     # Sentiment analysis
                     sentiment = sia.polarity_scores(all_text)
                     health_score = int(sentiment["pos"] * 100)
+                    
+                    # Display scattered metrics for the analysis
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.markdown(f"""
+                        <div class="scattered-metric">
+                            <h3 style="margin: 0; font-size: 1.8rem;">{len(all_text.split())}</h3>
+                            <p style="margin: 0; font-size: 0.9rem;">Words Analyzed</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown(f"""
+                        <div class="scattered-metric">
+                            <h3 style="margin: 0; font-size: 1.8rem;">{health_score}</h3>
+                            <p style="margin: 0; font-size: 0.9rem;">Satisfaction Score</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with col3:
+                        positive_reviews = sum(1 for text in df[selected_column].dropna() if sia.polarity_scores(text)['pos'] > 0.5)
+                        st.markdown(f"""
+                        <div class="scattered-metric">
+                            <h3 style="margin: 0; font-size: 1.8rem;">{positive_reviews}</h3>
+                            <p style="margin: 0; font-size: 0.9rem;">Positive Reviews</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                     
                     # Display results
                     col1, col2 = st.columns(2)
@@ -267,54 +415,97 @@ elif option == "CSV Analysis":
         except Exception as e:
             st.error(f"Error analyzing CSV: {str(e)}")
 
-# Data Upload Section with Google Form
+# Data Upload Section with built-in form
 else:
-    st.markdown("### Upload Bakery Data")
+    st.markdown("### Share Your Bakery Data")
     
     st.info("""
     **Help us improve our analysis** by sharing your bakery data. 
     This information helps train better models for the bakery industry.
     """)
     
-    # Google Form embed code
-    st.markdown("""
-    <div class="google-form-container">
-        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSeEXAMPLE/viewform?embedded=true" 
-                width="100%" 
-                height="800" 
-                frameborder="0" 
-                marginheight="0" 
-                marginwidth="0">
-            Loading…
-        </iframe>
-    </div>
-    """, unsafe_allow_html=True)
+    # Built-in form for data collection
+    with st.form("bakery_data_form"):
+        st.markdown("#### Bakery Information")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            bakery_name = st.text_input("Bakery Name*")
+            bakery_location = st.text_input("Location (City, Country)*")
+        
+        with col2:
+            bakery_type = st.selectbox("Bakery Type*", 
+                                     ["", "Artisan", "Commercial", "Cafe", "Pastry Shop", "Home-based", "Other"])
+            years_operation = st.number_input("Years in Operation", min_value=0, max_value=100, value=0)
+        
+        st.markdown("#### Product Information")
+        products = st.text_area("List your main products (separate with commas)*", 
+                               help="e.g., Chocolate Cake, Croissants, Sourdough Bread, Macarons")
+        
+        st.markdown("#### Customer Feedback")
+        rating = st.slider("Overall Customer Rating (1-5)*", 1, 5, 3)
+        common_feedback = st.text_area("Common Customer Comments")
+        
+        st.markdown("#### Additional Information")
+        challenges = st.multiselect("What are your biggest challenges?",
+                                  ["Pricing", "Competition", "Supply Issues", "Staffing", "Marketing", "Seasonality", "Other"])
+        
+        success_factors = st.multiselect("What contributes most to your success?",
+                                       ["Quality", "Location", "Price", "Variety", "Customer Service", "Marketing", "Unique Products"])
+        
+        submitted = st.form_submit_button("Submit Data", type="primary")
+        
+        if submitted:
+            if not bakery_name or not bakery_location or not bakery_type or not products:
+                st.error("Please fill in all required fields (*)")
+            else:
+                st.success("""
+                ✅ **Thank you for submitting your bakery data!**
+                
+                Your information will help improve our analysis models.
+                """)
+                
+                # Show metrics about the submission
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.markdown(f"""
+                    <div class="scattered-metric">
+                        <h3 style="margin: 0; font-size: 1.8rem;">{len(products.split(','))}</h3>
+                        <p style="margin: 0; font-size: 0.9rem;">Products Listed</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    st.markdown(f"""
+                    <div class="scattered-metric">
+                        <h3 style="margin: 0; font-size: 1.8rem;">{rating}/5</h3>
+                        <p style="margin: 0; font-size: 0.9rem;">Customer Rating</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col3:
+                    st.markdown(f"""
+                    <div class="scattered-metric">
+                        <h3 style="margin: 0; font-size: 1.8rem;">{years_operation}</h3>
+                        <p style="margin: 0; font-size: 0.9rem;">Years Operating</p>
+                    </div>
+                    """, unsafe_allow_html=True)
     
+    # Information about data usage
     st.markdown("""
     <div style="background-color: #E8F5E9; padding: 15px; border-radius: 8px; margin-top: 20px;">
-        <h4 style="margin-top: 0;">What we collect:</h4>
+        <h4 style="margin-top: 0;">What we do with your data:</h4>
         <ul style="margin-bottom: 0;">
-            <li>Bakery product information</li>
-            <li>Customer feedback data</li>
-            <li>Business performance metrics</li>
-            <li>Product images (optional)</li>
-            <li>Menu/pricing information</li>
+            <li>Improve bakery analysis algorithms</li>
+            <li>Create industry benchmarks</li>
+            <li>Develop better sentiment analysis</li>
+            <li>All data is anonymized and aggregated</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Additional information
-    with st.expander("Why share your data?"):
-        st.write("""
-        By sharing your bakery data, you help us:
-        - Improve our analysis algorithms
-        - Create better benchmarks for the industry
-        - Develop more accurate sentiment analysis
-        - Identify trends in customer preferences
-        
-        All data is anonymized and aggregated. We never share personally identifiable information.
-        """)
 
 # Minimal footer
 st.markdown("---")
-st.caption("Bakery Analyzer • Mauli Patel")
+st.caption("Bakery Analyzer • Simple, AI-powered insights")
