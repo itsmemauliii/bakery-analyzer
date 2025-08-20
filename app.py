@@ -1,258 +1,78 @@
-import matplotlib
-matplotlib.use("Agg")  # safe backend for Streamlit Cloud
-
-import streamlit as st
-import pandas as pd
-from scraper import scrape_website
-from nlp_utils import clean_text, extract_keywords, sentiment_analysis, readability, extract_products, extract_entities, detect_seasonal_specials
-from wordcloud import WordCloud
+# app.py
+import streamlit as st, requests, re, io
+from bs4 import BeautifulSoup
+from collections import Counter
 import matplotlib.pyplot as plt
-from io import BytesIO
-from datetime import datetime
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm
-from reportlab.lib.utils import ImageReader
-from reportlab.lib import colors
+from wordcloud import WordCloud
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from nltk.sentiment import SentimentIntensityAnalyzer
+import nltk; nltk.download("vader_lexicon", quiet=True)
 
-st.set_page_config(page_title="Bakery Website Analyzer", layout="wide")
-st.title("🍩 Bakery Website NLP Analyzer")
-st.write("Paste your bakery website URL and let’s see what flavors your words reveal!")
+st.set_page_config(page_title="Your Bakery Helper", page_icon="🍞", layout="wide")
+st.title("🥐 Your Bakery Helper – Creative Store Analysis")
 
-# ---------- PDF BUILDER ----------
-def build_pdf(url, df, polarity, subjectivity, avg_word_len, summary, suggestions, wc_png_bytes, products, entities, seasonal):
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    left = 2 * cm
-    y = height - 2 * cm
+# --- Functions ---
+def fetch_text(url):
+    try: return BeautifulSoup(requests.get(url, timeout=10).text,"html.parser").get_text(" ")
+    except: return ""
 
-    def line(txt, font="Helvetica", size=11, gap=0.5*cm):
-        nonlocal y
-        c.setFont(font, size)
-        max_chars = 95
-        words = txt.split()
-        current = ""
-        for w in words:
-            if len(current) + len(w) + 1 > max_chars:
-                c.drawString(left, y, current)
-                y -= gap
-                current = w
-            else:
-                current = (current + " " + w).strip()
-        if current:
-            c.drawString(left, y, current)
-            y -= gap
+def extract_items(text):
+    words=["cake","cakes","cookie","cookies","bread","pastry","pastries",
+           "brownie","cupcake","pizza","biscuit","biscuits","gift","khari"]
+    tokens=re.findall(r"\b[a-zA-Z]+\b", text.lower())
+    return Counter([t for t in tokens if t in words]).most_common(10)
 
-    def draw_tag(label, x, y, bg_color, text_color=colors.white):
-        c.setFillColor(bg_color)
-        c.roundRect(x, y-10, len(label)*4.5, 14, 3, fill=1, stroke=0)
-        c.setFillColor(text_color)
-        c.setFont("Helvetica", 9)
-        c.drawString(x+2, y-8, label)
+def seasonal_specials(text):
+    sp={"christmas":"Festive Cakes 🎄","valentine":"Valentine Offers ❤️","new year":"New Year Treats 🎉"}
+    return [(k,v) for k,v in sp.items() if k in text.lower()]
 
-    # ---------- Header ----------
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(left, y, "Bakery Website NLP Report")
-    y -= 1 * cm
-    c.setFont("Helvetica", 10)
-    c.drawString(left, y, f"URL: {url}")
-    y -= 0.5 * cm
-    c.drawString(left, y, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    y -= 1 * cm
+def sentiment_summary(text): return SentimentIntensityAnalyzer().polarity_scores(text)
 
-    # ---------- Items ----------
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(left, y, "🥐 Items Found")
-    y -= 1 * cm
-    x_pos = left
-    for item, freq in products:
-        draw_tag(f"{item.capitalize()} ({freq})", x_pos, y, colors.green)
-        x_pos += len(item)*10 + 40
-        if x_pos > width - 5*cm:
-            x_pos = left
-            y -= 20
-    y -= 30
+def plot_sentiment(sentiment):
+    labels,vals=["Positive","Neutral","Negative"],[sentiment["pos"],sentiment["neu"],sentiment["neg"]]
+    plt.pie(vals,labels=labels,autopct="%1.1f%%",startangle=90,colors=["green","gray","red"])
+    buf=io.BytesIO(); plt.savefig(buf,format="PNG"); plt.close(); buf.seek(0); return buf
 
-    # ---------- Sentiment ----------
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(left, y, "💬 Tone & Readability")
-    y -= 0.7 * cm
-    line(f"Polarity {polarity:.2f}, Subjectivity {subjectivity:.2f}, Avg word length {avg_word_len:.2f}")
+def recommendations(items):
+    rec=[]
+    if not items: return ["No products detected – add more bakery content!"]
+    top=items[0][0]
+    if "cake" in top: rec.append("Promote cakes with seasonal flavors (chocolate, fruit).")
+    if "cookie" in [i[0] for i in items]: rec.append("Bundle cookies with beverages for upselling.")
+    if "bread" in [i[0] for i in items]: rec.append("Highlight artisan breads or sourdough specials.")
+    if len(items)<3: rec.append("Expand product variety on your website.")
+    return rec
 
-    # ---------- Entities ----------
-    y -= 0.5 * cm
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(left, y, "🏷 Brand Mentions / Entities")
-    y -= 1 * cm
-    x_pos = left
-    for e in entities:
-        draw_tag(e.capitalize(), x_pos, y, colors.blue)
-        x_pos += len(e)*10 + 40
-        if x_pos > width - 5*cm:
-            x_pos = left
-            y -= 20
-    y -= 30
+def generate_pdf(url,items,specials,sentiment,keywords,pie_buf):
+    buf=io.BytesIO(); doc=SimpleDocTemplate(buf); styles=getSampleStyleSheet(); elems=[]
+    elems+=[Paragraph("🍩 Creative Bakery Store Analysis",styles['Title']),
+            Paragraph(f"Website: {url}",styles['Normal']),Spacer(1,12)]
+    if items: elems.append(Paragraph("Top Items:",styles['Heading2']))
+    for k,v in items: elems.append(Paragraph(f"{k.capitalize()} – {v}",styles['Normal']))
+    if specials: elems.append(Paragraph("Seasonal Specials:",styles['Heading2']))
+    for k,v in specials: elems.append(Paragraph(f"{k.capitalize()} → {v}",styles['Normal']))
+    elems.append(Paragraph("Sentiment Scores:",styles['Heading2']))
+    elems.append(Paragraph(str(sentiment),styles['Normal'])); elems.append(Image(pie_buf,300,200))
+    elems.append(Paragraph("Recommendations:",styles['Heading2']))
+    for r in recommendations(items): elems.append(Paragraph("• "+r,styles['Normal']))
+    if keywords:
+        wc=WordCloud(width=500,height=200,background_color="white").generate(" ".join(keywords))
+        img=io.BytesIO(); plt.imshow(wc); plt.axis("off"); plt.savefig(img,format="PNG");plt.close()
+        img.seek(0); elems.append(Image(img,400,150))
+    doc.build(elems); buf.seek(0); return buf
 
-    # ---------- Seasonal Specials ----------
-    y -= 0.5 * cm
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(left, y, "🎉 Seasonal Specials")
-    y -= 1 * cm
-    if seasonal:
-        x_pos = left
-        for word, tip in seasonal:
-            draw_tag(word, x_pos, y, colors.red)
-            x_pos += len(word)*10 + 40
-            if x_pos > width - 5*cm:
-                x_pos = left
-                y -= 20
-        y -= 20
-        for _, tip in seasonal:
-            line(f"• {tip}")
-    else:
-        line("No seasonal specials found.")
-
-    # ---------- Suggestions ----------
-    y -= 0.5 * cm
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(left, y, "📊 Marketing Suggestions")
-    y -= 0.7 * cm
-    for s in suggestions:
-        line(f"• {s}")
-
-    # ---------- WordCloud ----------
-    y -= 1 * cm
-    try:
-        img = ImageReader(BytesIO(wc_png_bytes))
-        c.drawImage(img, left, y-8*cm, width=12*cm, height=8*cm)
-    except:
-        line("WordCloud unavailable")
-
-    c.showPage()
-    c.save()
-    pdf = buffer.getvalue()
-    buffer.close()
-    return pdf
-
-# ---------- MAIN APP ----------
-url = st.text_input("Enter bakery website URL:", "")
-
-if url:
-    with st.spinner("Scraping website..."):
-        text = scrape_website(url)
-
-    cleaned = clean_text(text)
-    keywords = extract_keywords(cleaned)
-    polarity, subjectivity = sentiment_analysis(cleaned)
-    avg_len = readability(cleaned)
-    products = extract_products(cleaned)
-    entities = extract_entities(cleaned)
-    seasonal = detect_seasonal_specials(cleaned)
-
-    # Keywords
-    st.subheader("🔑 Top Keywords")
-    df_keywords = pd.DataFrame(keywords, columns=["Word", "Frequency"])
-    st.table(df_keywords)
-
-    # Items as Green Tags
-    st.subheader("🍞 Items Available on Website")
-    if products:
-        tags_html = ""
-        for item, freq in products:
-            tags_html += f"""
-            <span style="
-                background-color:#16a34a;
-                color:white;
-                padding:4px 10px;
-                border-radius:15px;
-                margin:4px;
-                display:inline-block;
-                font-size:13px;
-            ">{item.capitalize()} ({freq})</span>
-            """
-        st.markdown(tags_html, unsafe_allow_html=True)
-    else:
-        st.write("No clear bakery items found.")
-
-    # Entities as Blue Tags
-    st.subheader("🏷 Brand Mentions / Entities")
-    if entities:
-        tags_html = ""
-        for e in entities:
-            tags_html += f"""
-            <span style="
-                background-color:#2563eb;
-                color:white;
-                padding:4px 10px;
-                border-radius:15px;
-                margin:4px;
-                display:inline-block;
-                font-size:13px;
-            ">{e.capitalize()}</span>
-            """
-        st.markdown(tags_html, unsafe_allow_html=True)
-    else:
-        st.write("No clear entities found.")
-
-    # Seasonal Specials as Red Tags
-    st.subheader("🎉 Seasonal Specials")
-    if seasonal:
-        tags_html = ""
-        for word, tip in seasonal:
-            tags_html += f"""
-            <span style="
-                background-color:#dc2626;
-                color:white;
-                padding:4px 10px;
-                border-radius:15px;
-                margin:4px;
-                display:inline-block;
-                font-size:13px;
-            ">{word}</span>
-            """
-        st.markdown(tags_html, unsafe_allow_html=True)
-        for _, tip in seasonal:
-            st.markdown(f"- {tip}")
-    else:
-        st.write("No seasonal promotions detected.")
-
-    # Sentiment
-    st.subheader("💬 Tone & Readability")
-    st.write(f"Polarity: {polarity:.2f}, Subjectivity: {subjectivity:.2f}, Avg word length: {avg_len:.2f}")
-
-    # WordCloud
-    st.subheader("☁️ WordCloud")
-    wc = WordCloud(width=800, height=400, background_color="white").generate(cleaned)
-    fig, ax = plt.subplots()
-    ax.imshow(wc, interpolation="bilinear")
-    ax.axis("off")
-    st.pyplot(fig)
-
-    # Marketing Suggestions
-    st.subheader("📊 Marketing Suggestions")
-    suggestions = []
-    if not any("cake" in p for p, _ in products):
-        suggestions.append("Consider highlighting cakes more — they are often a bakery’s signature product.")
-    if not any("chocolate" in k for k, _ in keywords):
-        suggestions.append("Chocolate is missing! Adding more chocolate references could attract dessert lovers.")
-    if polarity < 0:
-        suggestions.append("Tone seems negative — consider adding more positive wording.")
-    if subjectivity < 0.3:
-        suggestions.append("Your tone is very factual — consider adding personal stories or customer testimonials.")
-    if subjectivity > 0.7:
-        suggestions.append("Your tone is very subjective — balance with factual info.")
-    if not suggestions:
-        suggestions.append("Content balance looks strong. Keep it up!")
-
-    for s in suggestions:
-        st.markdown(f"- {s}")
-
-    # PDF Export
-    st.subheader("📄 Download Report")
-    buf = BytesIO()
-    wc_buf = BytesIO()
-    wc.to_image().save(wc_buf, format="PNG")
-    pdf_bytes = build_pdf(url, df_keywords, polarity, subjectivity, avg_len,
-                          "Summary", suggestions, wc_buf.getvalue(), products, entities, seasonal)
-    st.download_button("📥 Download PDF", data=pdf_bytes, file_name="bakery_report.pdf", mime="application/pdf")
+# --- Streamlit UI ---
+url=st.text_input("Enter Bakery Website URL:")
+if st.button("Analyze"):
+    text=fetch_text(url)
+    if not text: st.error("Could not fetch website"); st.stop()
+    items, specials, sentiment = extract_items(text), seasonal_specials(text), sentiment_summary(text)
+    keywords=[w for w,_ in items]
+    col1,col2=st.columns(2)
+    with col1: st.subheader("🍰 Items Found"); st.table(items)
+    with col2: st.subheader("💬 Sentiment Scores"); st.json(sentiment); pie_buf=plot_sentiment(sentiment); st.image(pie_buf)
+    st.subheader("☁️ WordCloud"); wc=WordCloud(width=600,height=300,background_color="white").generate(" ".join(keywords))
+    plt.imshow(wc); plt.axis("off"); st.pyplot(plt.gcf()); plt.close()
+    pdf=generate_pdf(url,items,specials,sentiment,keywords,pie_buf)
+    st.download_button("📥 Download PDF Report",data=pdf,file_name="bakery_report.pdf")
