@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 
 def scrape_website(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
 
         # Extract text from paragraphs and headings
