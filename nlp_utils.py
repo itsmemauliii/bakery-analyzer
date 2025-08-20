@@ -1,14 +1,14 @@
+import spacy
 from textblob import TextBlob
 from collections import Counter
 import re
-import subprocess
-import sys
-import spacy
 
+# Try loading spaCy model safely
 def load_spacy_model():
     try:
         return spacy.load("en_core_web_sm")
     except OSError:
+        # last-resort fallback in case requirements.txt failed
         from spacy.cli import download
         download("en_core_web_sm")
         return spacy.load("en_core_web_sm")
