@@ -6,14 +6,16 @@ from bs4 import BeautifulSoup
 from wordcloud import WordCloud
 from nltk.sentiment import SentimentIntensityAnalyzer
 import nltk
+import time
+import re
 
 nltk.download("vader_lexicon", quiet=True)
 sia = SentimentIntensityAnalyzer()
 
 # Improved UI configuration
-st.set_page_config(page_title="🍰 Complete Bakery Analyzer", layout="wide", page_icon="🍞")
-st.title("🍞 Complete Bakery Analyzer")
-st.markdown("### Extract EVERY product from bakery websites with detailed analysis")
+st.set_page_config(page_title="🍰 Complete Bakery Product Extractor", layout="wide", page_icon="🍞")
+st.title("🍞 Complete Bakery Product Extractor")
+st.markdown("### Extract EVERY product from bakery websites with advanced analysis")
 
 # Sidebar for navigation
 st.sidebar.header("Navigation")
@@ -36,185 +38,206 @@ if option == "📝 Data Collection":
 # Website Analysis Section
 elif option == "🌐 Website Analysis":
     st.header("🌐 Complete Website Product Extraction")
-    url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.examplebakery.com")
+    url = st.text_input("🔗 Enter Bakery Website URL:", "https://www.bakerywebsite.com")
     
     if st.button("🔍 Extract All Products", type="primary"):
-        with st.spinner("Completely scanning website for all products..."):
-            try:
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                }
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        try:
+            # Step 1: Fetch the website
+            status_text.text("Step 1/5: Fetching website content...")
+            progress_bar.progress(20)
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+            }
+            
+            response = requests.get(url, timeout=15, headers=headers)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Step 2: Extract all text content
+            status_text.text("Step 2/5: Extracting all text content...")
+            progress_bar.progress(40)
+            
+            # Remove unwanted elements but keep structure
+            for element in soup(["script", "style", "meta", "link"]):
+                element.decompose()
+            
+            # Get all text with context
+            all_text = soup.get_text(separator='\n', strip=True)
+            
+            # Step 3: Advanced product extraction
+            status_text.text("Step 3/5: Advanced product extraction...")
+            progress_bar.progress(60)
+            
+            # Comprehensive bakery product patterns
+            bakery_patterns = [
+                # Cake patterns
+                r'\b([A-Z][a-z]+\s+[Cc]ake|[A-Z][a-z]+\s+[Cc]akes)\b',
+                r'\b([A-Z][a-z]+\s+[Cc]upcake|[A-Z][a-z]+\s+[Cc]upcakes)\b',
+                r'\b([A-Z][a-z]+\s+[Cc]heesecake|[A-Z][a-z]+\s+[Cc]heesecakes)\b',
+                # Pastry patterns
+                r'\b([A-Z][a-z]+\s+[Pp]astry|[A-Z][a-z]+\s+[Pp]astries)\b',
+                r'\b([A-Z][a-z]+\s+[Cc]roissant|[A-Z][a-z]+\s+[Cc]roissants)\b',
+                # Bread patterns
+                r'\b([A-Z][a-z]+\s+[Bb]read|[A-Z][a-z]+\s+[Bb]reads)\b',
+                r'\b([A-Z][a-z]+\s+[Bb]aguette|[A-Z][a-z]+\s+[Bb]aguettes)\b',
+                # Cookie patterns
+                r'\b([A-Z][a-z]+\s+[Cc]ookie|[A-Z][a-z]+\s+[Cc]ookies)\b',
+                r'\b([A-Z][a-z]+\s+[Bb]iscuit|[A-Z][a-z]+\s+[Bb]iscuits)\b',
+                # General patterns
+                r'\b([A-Z][a-z]+\s+[Dd]onut|[A-Z][a-z]+\s+[Dd]onuts)\b',
+                r'\b([A-Z][a-z]+\s+[Mm]uffin|[A-Z][a-z]+\s+[Mm]uffins)\b',
+                r'\b([A-Z][a-z]+\s+[Pp]ie|[A-Z][a-z]+\s+[Pp]ies)\b',
+                r'\b([A-Z][a-z]+\s+[Tt]art|[A-Z][a-z]+\s+[Tt]arts)\b',
+                # Single word products (capitalized)
+                r'\b([A-Z][a-z]{3,20})\b(?=\s*(?:cake|pastry|bread|cookie|pie|tart|muffin|donut)?)'
+            ]
+            
+            # Extract products using patterns
+            all_products = set()
+            for pattern in bakery_patterns:
+                matches = re.findall(pattern, all_text)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        match = ' '.join(match)
+                    if len(match) > 3 and not any(word in match.lower() for word in ['menu', 'contact', 'about', 'home', 'shop']):
+                        all_products.add(match.strip())
+            
+            # Additional extraction from lists and headings
+            headings = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
+            for heading in headings:
+                text = heading.get_text(strip=True)
+                if 3 <= len(text) <= 50 and not any(word in text.lower() for word in ['menu', 'contact', 'about', 'home']):
+                    all_products.add(text)
+            
+            # Extract from list items
+            list_items = soup.find_all(['li', 'dt', 'dd'])
+            for item in list_items:
+                text = item.get_text(strip=True)
+                if 5 <= len(text) <= 60 and not any(word in text.lower() for word in ['menu', 'contact', 'about', 'home']):
+                    all_products.add(text)
+            
+            # Step 4: Categorize products
+            status_text.text("Step 4/5: Categorizing products...")
+            progress_bar.progress(80)
+            
+            # Define categories
+            categories = {
+                'Cakes': ['cake', 'cupcake', 'cheesecake'],
+                'Pastries': ['pastry', 'croissant', 'danish', 'éclair'],
+                'Breads': ['bread', 'baguette', 'loaf', 'bun', 'roll'],
+                'Cookies': ['cookie', 'biscuit', 'macaron'],
+                'Desserts': ['pie', 'tart', 'muffin', 'donut', 'brownie'],
+                'Other': []  # For uncategorized items
+            }
+            
+            categorized_products = {category: [] for category in categories.keys()}
+            uncategorized_products = []
+            
+            for product in sorted(all_products):
+                product_lower = product.lower()
+                categorized = False
                 
-                response = requests.get(url, timeout=15, headers=headers)
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                # Remove unwanted elements
-                for element in soup(["script", "style", "meta", "link", "nav", "footer", "header"]):
-                    element.decompose()
-                
-                # COMPREHENSIVE PRODUCT EXTRACTION STRATEGY
-                all_products = set()
-                
-                # Strategy 1: Look for common e-commerce patterns
-                product_selectors = [
-                    # Common e-commerce classes
-                    '[class*="product"]', '[class*="item"]', '[class*="card"]', '[class*="menu"]',
-                    '[class*="shop"]', '[class*="store"]', '[class*="catalog"]', '[class*="grid"]',
-                    '[class*="list"]', '[class*="collection"]', 
-                    # Common IDs
-                    '[id*="product"]', '[id*="item"]', '[id*="menu"]',
-                    # Common HTML structures
-                    '.product', '.item', '.card', '.menu-item', '.shop-item', '.store-item',
-                    '.product-name', '.item-name', '.product-title', '.item-title',
-                    '.product-list', '.item-list', '.product-grid', '.item-grid',
-                    # List items that might contain products
-                    'li', 'dt', 'dd'
-                ]
-                
-                # Try each selector to find products
-                for selector in product_selectors:
-                    try:
-                        elements = soup.select(selector)
-                        for element in elements:
-                            text = element.get_text(strip=True)
-                            if 5 <= len(text) <= 100:  # Reasonable product name length
-                                all_products.add(text)
-                    except:
+                for category, keywords in categories.items():
+                    if category == 'Other':
                         continue
-                
-                # Strategy 2: Look for headings that might be product categories
-                headings = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])
-                for heading in headings:
-                    text = heading.get_text(strip=True)
-                    if 3 <= len(text) <= 80:
-                        all_products.add(text)
-                
-                # Strategy 3: Look for links that might point to products
-                links = soup.find_all('a', href=True)
-                for link in links:
-                    text = link.get_text(strip=True)
-                    href = link['href']
-                    # If link text looks like a product and href suggests product page
-                    if (3 <= len(text) <= 100 and 
-                        any(keyword in href.lower() for keyword in ['product', 'item', 'shop', 'buy', 'order', 'menu'])):
-                        all_products.add(text)
-                
-                # Strategy 4: Look for images with alt text that might be products
-                images = soup.find_all('img', alt=True)
-                for img in images:
-                    alt_text = img['alt'].strip()
-                    if 3 <= len(alt_text) <= 100 and alt_text not in ['', ' ']:
-                        all_products.add(alt_text)
-                
-                # Strategy 5: Extract text content and look for product-like patterns
-                all_text = soup.get_text()
-                lines = all_text.split('\n')
-                for line in lines:
-                    clean_line = line.strip()
-                    if 5 <= len(clean_line) <= 150:  # Product description length
-                        all_products.add(clean_line)
-                
-                # Filter and categorize products
-                bakery_keywords = [
-                    'cake', 'pastry', 'cookie', 'bread', 'bun', 'muffin', 'donut', 
-                    'croissant', 'bagel', 'tart', 'pie', 'brownie', 'cupcake', 
-                    'cheesecake', 'éclair', 'danish', 'scone', 'biscuit', 'loaf',
-                    'roll', 'baguette', 'ciabatta', 'pretzel', 'strudel', 'puff'
-                ]
-                
-                categorized_products = {}
-                uncategorized_products = []
-                
-                for product in sorted(all_products):
-                    product_lower = product.lower()
-                    categorized = False
-                    
-                    for keyword in bakery_keywords:
+                    for keyword in keywords:
                         if keyword in product_lower:
-                            if keyword not in categorized_products:
-                                categorized_products[keyword] = []
-                            categorized_products[keyword].append(product)
+                            categorized_products[category].append(product)
                             categorized = True
                             break
-                    
-                    if not categorized:
-                        uncategorized_products.append(product)
+                    if categorized:
+                        break
                 
-                # Get sentiment from the main content
-                main_content = soup.find_all(['p', 'div', 'section'])
-                content_text = " ".join([elem.get_text() for elem in main_content[:10]]) if main_content else all_text
-                sentiment = sia.polarity_scores(content_text)
-                health = min(100, max(0, int((sentiment["pos"] * 100) + 30)))
+                if not categorized:
+                    uncategorized_products.append(product)
+            
+            # Step 5: Analyze sentiment
+            status_text.text("Step 5/5: Analyzing sentiment...")
+            progress_bar.progress(100)
+            
+            # Get sentiment from the main content
+            main_content = soup.find_all(['p', 'div'])
+            content_text = " ".join([elem.get_text() for elem in main_content[:5]]) if main_content else all_text[:1000]
+            sentiment = sia.polarity_scores(content_text)
+            health = min(100, max(0, int((sentiment["pos"] * 100) + 30)))
+            
+            status_text.text("Analysis complete!")
+            time.sleep(0.5)
+            status_text.empty()
+            progress_bar.empty()
+            
+            # Display results in tabs
+            tab1, tab2, tab3 = st.tabs(["📋 All Products", "📊 Analysis", "🔍 Raw Data"])
+            
+            with tab1:
+                st.subheader("🎯 All Extracted Products")
                 
-                # Display results in tabs
-                tab1, tab2, tab3 = st.tabs(["📋 All Products", "📊 Analysis", "🔍 Raw Data"])
+                total_count = sum(len(products) for products in categorized_products.values()) + len(uncategorized_products)
+                st.success(f"✅ Total products extracted: {total_count}")
                 
-                with tab1:
-                    st.subheader("🎯 All Extracted Products")
-                    
-                    if categorized_products:
-                        for category, products in categorized_products.items():
-                            with st.expander(f"🍞 {category.capitalize()} ({len(products)} products)"):
-                                for i, product in enumerate(products, 1):
+                if categorized_products:
+                    for category, products in categorized_products.items():
+                        if products:
+                            with st.expander(f"🍞 {category} ({len(products)} products)"):
+                                for i, product in enumerate(sorted(products), 1):
                                     st.write(f"{i}. {product}")
-                    
-                    if uncategorized_products:
-                        with st.expander(f"❓ Unclassified Items ({len(uncategorized_products)} items)"):
-                            for i, product in enumerate(uncategorized_products, 1):
-                                st.write(f"{i}. {product}")
-                    
-                    st.success(f"✅ Total products extracted: {len(all_products)}")
                 
-                with tab2:
-                    col1, col2 = st.columns(2)
-                    
+                if uncategorized_products:
+                    with st.expander(f"❓ Other Items ({len(uncategorized_products)} items)"):
+                        for i, product in enumerate(sorted(uncategorized_products), 1):
+                            st.write(f"{i}. {product}")
+            
+            with tab2:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.subheader("📊 Sentiment Analysis")
+                    col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.subheader("📊 Sentiment Analysis")
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Positive 😊", f"{sentiment['pos']*100:.1f}%")
-                        with col2:
-                            st.metric("Neutral 😐", f"{sentiment['neu']*100:.1f}%")
-                        with col3:
-                            st.metric("Negative 😞", f"{sentiment['neg']*100:.1f}%")
-                        
-                        st.subheader("🏆 Website Health Score")
-                        if health >= 70:
-                            st.success(f"{health}/100")
-                        elif health >= 40:
-                            st.warning(f"{health}/100")
-                        else:
-                            st.error(f"{health}/100")
-                        st.progress(health/100)
-                    
+                        st.metric("Positive 😊", f"{sentiment['pos']*100:.1f}%")
                     with col2:
-                        st.subheader("📈 Product Categories Distribution")
-                        if categorized_products:
-                            category_counts = {cat: len(prods) for cat, prods in categorized_products.items()}
+                        st.metric("Neutral 😐", f"{sentiment['neu']*100:.1f}%")
+                    with col3:
+                        st.metric("Negative 😞", f"{sentiment['neg']*100:.1f}%")
+                    
+                    st.subheader("🏆 Website Health Score")
+                    if health >= 70:
+                        st.success(f"{health}/100")
+                    elif health >= 40:
+                        st.warning(f"{health}/100")
+                    else:
+                        st.error(f"{health}/100")
+                    st.progress(health/100)
+                
+                with col2:
+                    st.subheader("📈 Product Categories Distribution")
+                    if categorized_products:
+                        category_counts = {cat: len(prods) for cat, prods in categorized_products.items() if prods}
+                        if category_counts:
                             fig, ax = plt.subplots()
                             ax.pie(category_counts.values(), labels=category_counts.keys(), autopct='%1.1f%%')
                             ax.axis('equal')
                             st.pyplot(fig)
-                
-                with tab3:
-                    st.subheader("🔍 Raw Extraction Data")
-                    st.text_area("All extracted text content (first 2000 chars):", 
-                                all_text[:2000] + "..." if len(all_text) > 2000 else all_text, 
-                                height=300)
             
-            except Exception as e:
-                st.error(f"Error analyzing website: {str(e)}")
-                st.info("""
-                **If extraction failed, try:**
-                - A different bakery website
-                - Checking if the website is accessible
-                - The website might have anti-scraping protection
-                """)
+            with tab3:
+                st.subheader("🔍 Raw Extraction Data")
+                st.text_area("All extracted text content (first 2000 chars):", 
+                            all_text[:2000] + "..." if len(all_text) > 2000 else all_text, 
+                            height=300)
+        
+        except Exception as e:
+            st.error(f"Error analyzing website: {str(e)}")
+            st.info("""
+            **If extraction failed, try:**
+            - A different bakery website
+            - Checking if the website is accessible
+            - The website might have anti-scraping protection
+            """)
 
 # CSV Analysis Section
 else:
