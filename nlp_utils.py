@@ -1,23 +1,20 @@
-from textblob import TextBlob
-from collections import Counter
 import re
 import nltk
+from collections import Counter
+from textblob import TextBlob
 
-# Ensure stopwords are available
-nltk.download("stopwords", quiet=True)
-from nltk.corpus import stopwords
-STOPWORDS = set(stopwords.words("english"))
+# Download nltk data if not already
+nltk.download("punkt", quiet=True)
+nltk.download("averaged_perceptron_tagger", quiet=True)
 
 def clean_text(text):
-    return re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r"\s+", " ", text)
+    return text.lower()
 
-def extract_keywords(text, top_n=10):
-    words = [
-        w.lower() for w in re.findall(r'\b[a-zA-Z]{3,}\b', text)
-        if w.lower() not in STOPWORDS
-    ]
-    common_words = Counter(words).most_common(top_n)
-    return common_words
+def extract_keywords(text, top_n=20):
+    words = re.findall(r"\b[a-z]{3,}\b", text.lower())
+    freq = Counter(words)
+    return freq.most_common(top_n)
 
 def sentiment_analysis(text):
     blob = TextBlob(text)
@@ -25,5 +22,30 @@ def sentiment_analysis(text):
 
 def readability(text):
     words = text.split()
-    avg_len = sum(len(w) for w in words) / len(words) if words else 0
-    return round(avg_len, 2)
+    if not words:
+        return 0
+    return sum(len(w) for w in words) / len(words)
+
+def extract_products(text):
+    """Extract probable bakery items (nouns only)."""
+    tokens = nltk.word_tokenize(text)
+    tagged = nltk.pos_tag(tokens)
+
+    # keep only nouns
+    nouns = [word.lower() for word, pos in tagged if pos.startswith("NN")]
+
+    # filter with bakery food dictionary
+    food_terms = [
+        "cake","cakes","cookie","cookies","bread","breads","bun","buns",
+        "pastry","pastries","pizza","khari","biscuit","biscuits",
+        "puff","sandwich","donut","muffin","brownie","croissant","roll",
+        "toast","pie","tart","cupcake","bagel"
+    ]
+
+    matches = [w for w in nouns if w in food_terms]
+    return Counter(matches).most_common()
+
+def extract_entities(text):
+    """Simple Named Entity Recognition using TextBlob (people, places, orgs)."""
+    blob = TextBlob(text)
+    return blob.noun_phrases[:10]  # top 10 interesting phrases
