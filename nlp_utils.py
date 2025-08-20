@@ -1,18 +1,16 @@
-import spacy
 from textblob import TextBlob
 from collections import Counter
 import re
 import subprocess
 import sys
+import spacy
 
-def load_spacy_model():
-    try:
-        return spacy.load("en_core_web_sm")
-    except OSError:
-        subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
-        return spacy.load("en_core_web_sm")
-
-nlp = load_spacy_model()
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    from spacy.cli import download
+    download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
 def clean_text(text):
     return re.sub(r'\s+', ' ', text).strip()
