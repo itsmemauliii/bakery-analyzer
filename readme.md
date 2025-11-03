@@ -125,5 +125,5 @@ bakery-analyzer
 
 ## License
 
-MIT License © 2025 - Mauli Patel
-Feel free to use, remix, and learn from this project. Just give credit where it’s due.
+* MIT License © 2025 - Mauli Patel
+* Feel free to use, remix, and learn from this project. Just give credit where it’s due.
