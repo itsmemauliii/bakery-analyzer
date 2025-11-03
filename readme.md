@@ -68,7 +68,7 @@ It’s built with a blend of **Streamlit**, **BeautifulSoup**, **NLTK**, and **W
 ### 1. Clone this repository
 
 ```bash
-git clone https://github.com/yourusername/bakery-analyzer.git
+git clone https://github.com/itsmemauliii/bakery-analyzer.git
 cd bakery-analyzer
 ```
 
@@ -116,20 +116,14 @@ bakery-analyzer
 
 ---
 
-## Screenshots (optional)
-
-*(You can add screenshots later with Streamlit sections like Website Analysis / CSV Analysis in action.)*
-
----
-
 ## Author
 
 **Developed by [Mauli Patel](https://github.com/maulipatel)**
-AI & Data Science enthusiast | Streamlit + NLP Projects
+* AI & Data Science enthusiast | Streamlit + NLP Projects
 
 ---
 
 ## License
 
-MIT License © 2025 — Mauli Patel
+MIT License © 2025 - Mauli Patel
 Feel free to use, remix, and learn from this project. Just give credit where it’s due.
